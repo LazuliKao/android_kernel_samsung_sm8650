@@ -1,3 +1,4 @@
+# Build Kernel For Samsung Galaxy S24 Series (Snapdragon)
 - Test on: Ubuntu 24.04 LTS
 
 ```sh
