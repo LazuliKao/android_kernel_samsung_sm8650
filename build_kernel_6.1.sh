@@ -8,32 +8,12 @@ TARGET_DEFCONFIG=${1:-gki_defconfig}
 
 function prepare_toolchain() {
     # Install the requirements for building the kernel when running the script for the first time
-    if [ ! -f ".requirements" ]; then
-        sudo apt update && sudo apt install -y git device-tree-compiler lz4 xz-utils zlib1g-dev openjdk-17-jdk gcc g++ python3 python-is-python3 p7zip-full android-sdk-libsparse-utils erofs-utils \
-            default-jdk git gnupg flex bison gperf build-essential zip curl libc6-dev libncurses-dev libx11-dev libreadline-dev libgl1 libgl1-mesa-dev \
-            python3 make sudo gcc g++ bc grep tofrodos python3-markdown libxml2-utils xsltproc zlib1g-dev python-is-python3 libc6-dev libtinfo6 \
-            make repo cpio kmod openssl libelf-dev pahole libssl-dev libarchive-tools zstd --fix-missing && wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb && sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb && touch .requirements
-    fi
-
-    # Create necessary directories
-    mkdir -p "${KERNEL_ROOT}/out" "${KERNEL_ROOT}/build" "${HOME}/toolchains"
-
-    #init neutron-clang
-    if [ ! -d "${HOME}/toolchains/neutron-clang" ]; then
-        echo -e "\n[INFO] Cloning Neutron-Clang Toolchain\n"
-        mkdir -p "${HOME}/toolchains/neutron-clang" && cd "${HOME}/toolchains/neutron-clang"
-        curl -LO "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman" && chmod +x antman
-        bash antman -S && bash antman --patch=glibc
-        cd "${KERNEL_ROOT}"
-    fi
-
-    # Export toolchain paths
-    export PATH="${PATH}:${HOME}/toolchains/neutron-clang/bin"
-    export NEUTRON_PATH="${HOME}/toolchains/neutron-clang/bin"
-    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${HOME}/toolchains/neutron-clang/lib"
-
-    # Set cross-compile environment variables
-    export BUILD_CC="${HOME}/toolchains/neutron-clang/bin/clang"
+    local TOOLCHAIN=$(realpath "../toolchains")
+    export PATH=$TOOLCHAIN/build-tools/linux-x86/bin:$PATH
+    export PATH=$TOOLCHAIN/build-tools/path/linux-x86:$PATH
+    export PATH=$TOOLCHAIN/clang/host/linux-x86/clang-r487747c/bin:$PATH
+    export PATH=$TOOLCHAIN/clang-tools/linux-x86/bin:$PATH
+    export PATH=$TOOLCHAIN/kernel-build-tools/linux-x86/bin:$PATH
 }
 function prepare_config() {
     if [ "$LTO" == "thin" ]; then
@@ -41,25 +21,13 @@ function prepare_config() {
     fi
     # Build options for the kernel
     export BUILD_OPTIONS="
--C ${KERNEL_ROOT} \
-O=${KERNEL_ROOT}/out \
--j$(nproc) \
-ARCH=arm64 \
-CROSS_COMPILE=aarch64-linux-gnu- \
-CLANG_TRIPLE=aarch64-linux-gnu- \
-CC=${BUILD_CC} \
-LLVM=1 \
-LLVM_IAS=1 \
-AR=${NEUTRON_PATH}/llvm-ar \
-NM=${NEUTRON_PATH}/llvm-nm \
-LD=${NEUTRON_PATH}/ld.lld \
-STRIP=${NEUTRON_PATH}/llvm-strip \
-OBJCOPY=${NEUTRON_PATH}/llvm-objcopy \
-OBJDUMP=${NEUTRON_PATH}/llvm-objdump \
-READELF=${NEUTRON_PATH}/llvm-readelf \
-HOSTCC=${NEUTRON_PATH}/clang \
-HOSTCXX=${NEUTRON_PATH}/clang++ \
-LOCALVERSION=$LOCALVERSION \
+CC=clang
+ARCH=arm64
+LLVM=1 LLVM_IAS=1
+LOCALVERSION=$LOCALVERSION
+-j$(nproc)
+-C $KERNEL_ROOT
+O=$KERNEL_ROOT/out
 "
     # Make default configuration.
     make ${BUILD_OPTIONS} $TARGET_DEFCONFIG
@@ -144,6 +112,7 @@ function build_kernel() {
     # Build the kernel
     make ${BUILD_OPTIONS} Image || exit 1
     # Copy the built kernel to the build directory
+    mkdir -p "${KERNEL_ROOT}/build"
     local output_kernel="${KERNEL_ROOT}/build/kernel"
     cp "${KERNEL_ROOT}/out/arch/arm64/boot/Image" "$output_kernel"
     echo -e "\n[INFO]: Kernel built successfully and copied to $output_kernel\n"
@@ -154,6 +123,7 @@ main() {
     prepare_toolchain
     prepare_config
     build_kernel
+    repack_stock_img
     echo -e "\n[INFO]: BUILD FINISHED..!"
 }
 main

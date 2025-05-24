@@ -22,24 +22,8 @@ RUN echo "build ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/build
 # Create workspace directory
 WORKDIR /workspace
 
-# Create directories for toolchains
-RUN mkdir -p /home/build/toolchains && chown -R build:build /home/build
-
 # Download and install Neutron-Clang Toolchain
 USER build
-
-RUN mkdir -p /home/build/toolchains/neutron-clang && \
- cd /home/build/toolchains/neutron-clang && \
- wget "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman" -O antman && \
- chmod +x antman && \
- bash antman -S && \
- bash antman --patch=glibc
-
-# Set environment variables
-ENV PATH="${PATH}:/home/build/toolchains/neutron-clang/bin"
-ENV NEUTRON_PATH="/home/build/toolchains/neutron-clang/bin"
-ENV BUILD_CC="/home/build/toolchains/neutron-clang/bin/clang"
-ENV ARCH=arm64
 
 # Switch back to root user for copying files
 USER root
