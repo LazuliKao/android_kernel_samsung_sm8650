@@ -2,6 +2,7 @@
 official_source="SM-S9210_HKTW_14_Opensource.zip" # change it with you downloaded file
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
+toolchains_root="$build_root/toolchains"
 kernel_su_next_branch="next-susfs"
 susfs_branch="gki-android14-6.1"
 
@@ -43,8 +44,7 @@ _set_or_add_config() {
 
 function extract_toolchains() {
     echo "[+] Extracting toolchains..."
-    local toolchains_dir="$build_root/toolchains"
-    if [ -d "$toolchains_dir" ]; then
+    if [ -d "$toolchains_root" ]; then
         echo "[+] Toolchains directory already exists. Skipping extraction."
         return 0
     fi
@@ -56,14 +56,14 @@ function extract_toolchains() {
         echo "link: https://opensource.samsung.com/uploadSearch?searchValue=S24(Qualcomm)"
         exit 1
     fi
-    mkdir -p "$toolchains_dir"
-    tar -xzf "$toolchains_file" -C "$toolchains_dir" --strip-components=1
+    mkdir -p "$toolchains_root"
+    tar -xzf "$toolchains_file" -C "$toolchains_root" --strip-components=1
     if [ $? -ne 0 ]; then
         echo "[-] Failed to extract toolchains from $toolchains_file."
-        rm -rf "$toolchains_dir"
+        rm -rf "$toolchains_root"
         exit 1
     fi
-    echo "[+] Toolchains extracted successfully to $toolchains_dir."
+    echo "[+] Toolchains extracted successfully to $toolchains_root."
 }
 function prepare_source() {
     if [ ! -d "$kernel_root" ]; then
@@ -299,13 +299,13 @@ function build_container() {
     echo "[+] You can now use the container to build the kernel."
     echo ""
     echo "To run a one-time container and build the kernel, use:"
-    echo "docker run --rm -it -v \"$kernel_root:/workspace\" sm8650-kernel-builder /workspace/build.sh"
+    echo "docker run --rm -it -v \"$kernel_root:/workspace\" -v \"$toolchains_root:/toolchains\" sm8650-kernel-builder /workspace/build.sh"
     echo ""
     echo "This will mount your current directory to /workspace in the container"
     echo "and run the build.sh script inside the container."
     echo ""
     echo "If you want to open a shell in the container for manual operations:"
-    echo "docker run --rm -it -v \"$kernel_root:/workspace\" sm8650-kernel-builder /bin/bash"
+    echo "docker run --rm -it -v \"$kernel_root:/workspace\" -v \"$toolchains_root:/toolchains\" sm8650-kernel-builder /bin/bash"
 
     return 0
 }
