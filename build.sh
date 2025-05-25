@@ -2,7 +2,7 @@
 official_source="SM-S9210_HKTW_14_Opensource.zip" # change it with you downloaded file
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
-kernel_su_next_branch="next-susfs-dev"
+kernel_su_next_branch="next-susfs"
 susfs_branch="gki-android14-6.1"
 
 function clean() {
@@ -15,16 +15,16 @@ custom_config_file="$kernel_root/arch/arm64/configs/$custom_config_name"
 _set_config() {
     key=$1
     value=$2
-    original=$(grep "^$key" "$custom_config_file" | cut -d'=' -f2)
+    original=$(grep "^$key=" "$custom_config_file" | cut -d'=' -f2)
     echo "Setting $key=$value (original: $original)"
-    sed -i "s/^\($key\s*=\s*\).*\$/\1$value/" .config
+    sed -i "s/^\($key\s*=\s*\).*\$/\1$value/" "$custom_config_file"
 }
 _set_config_quote() {
     key=$1
     value=$2
-    original=$(grep "^$key" "$custom_config_file" | cut -d'=' -f2)
+    original=$(grep "^$key=" "$custom_config_file" | cut -d'=' -f2)
     echo "Setting $key=\"$value\" (original: $original)"
-    sed -i "s/^\($key\s*=\s*\).*\$/\1\"$value\"/" .config
+    sed -i "s/^\($key\s*=\s*\).*\$/\1\"$value\"/" "$custom_config_file"
 }
 _get_config() {
     key=$1
@@ -33,7 +33,7 @@ _get_config() {
 _set_or_add_config() {
     key=$1
     value=$2
-    if grep -q "^$key" "$custom_config_file"; then
+    if grep -q "^$key=" "$custom_config_file"; then
         _set_config "$key" "$value"
     else
         echo "$key=$value" >>"$custom_config_file"

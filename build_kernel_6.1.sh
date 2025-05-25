@@ -3,7 +3,7 @@
 export KERNEL_ROOT="$(pwd)"
 export ARCH=arm64
 export KBUILD_BUILD_USER="@lk"
-LOCALVERSION=-android12-lk
+LOCALVERSION=-android14-lk
 TARGET_DEFCONFIG=${1:-gki_defconfig}
 
 function prepare_toolchain() {

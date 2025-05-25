@@ -14,26 +14,8 @@ RUN apt-get update && apt-get install -y \
     python3 make sudo gcc g++ bc grep tofrodos python3-markdown libxml2-utils xsltproc zlib1g-dev python-is-python3 libc6-dev libtinfo6 \
     make repo cpio kmod openssl libelf-dev pahole libssl-dev libarchive-tools zstd --fix-missing && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create build user and group and setup sudo without password
-RUN groupadd -r build && useradd -r -g build -m -d /home/build build
-RUN mkdir -p /workspace && chown -R build:build /workspace
-RUN echo "build ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/build
-
-# Create workspace directory
-WORKDIR /workspace
-
-# Download and install Neutron-Clang Toolchain
-USER build
-
-# Switch back to root user for copying files
-USER root
-
-# Copy the build scripts
-RUN chown -R build:build /workspace/
-
-# Switch to build user for the rest of operations
-USER build
-
+# fix git safe directory issue
+RUN git config --global safe.directory '*'
 # Set working directory
 WORKDIR /workspace
 
