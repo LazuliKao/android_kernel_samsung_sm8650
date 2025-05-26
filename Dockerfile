@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
     && dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
 
 # fix git safe directory issue
-RUN git config --global safe.directory '*'
+RUN git config --global --add safe.directory '*'
 
 # Set default command
 CMD ["/bin/bash"]
