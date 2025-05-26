@@ -3,7 +3,7 @@ official_source="SM-S9210_HKTW_14_Opensource.zip" # change it with you downloade
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
 toolchains_root="$build_root/toolchains"
-kernel_su_next_branch="next-susfs"
+kernel_su_next_branch="next"
 susfs_branch="gki-android14-6.1"
 
 function clean() {
@@ -228,10 +228,13 @@ function add_susfs() {
     fi
     __restore_fix_patch # restore removed samsung's changes
     echo "[+] SuSFS added successfully."
+    cd KernelSU-Next
+    patch -p1 <"$build_root/kernel_patches/0001-kernel-patch-susfs-v1.5.7-to-KernelSU-Next-v1.0.7.patch"
+    cd - >/dev/null
 }
 function fix_kernel_su_next_susfs() {
     echo "[+] Applying kernel config tweaks fix susfs with ksun..."
-    _set_or_add_config CONFIG_KSU_SUSFS n
+    # _set_or_add_config CONFIG_KSU_SUSFS n
 }
 function fix_driver_check() {
     # ref to: https://github.com/ravindu644/Android-Kernel-Tutorials/blob/main/patches/010.Disable-CRC-Checks.patch
