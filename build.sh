@@ -191,7 +191,6 @@ function add_susfs() {
         echo "[+] Updating susfs4ksu repository..."
         cd "$susfs_dir"
         git fetch origin "$susfs_branch"
-        git checkout "$susfs_branch"
         git pull origin "$susfs_branch"
         cd "$build_root"
     fi
@@ -234,7 +233,15 @@ function add_susfs() {
 }
 function fix_kernel_su_next_susfs() {
     echo "[+] Applying kernel config tweaks fix susfs with ksun..."
-    # _set_or_add_config CONFIG_KSU_SUSFS n
+    _set_or_add_config CONFIG_KSU_SUSFS_SUS_SU n
+    echo "[+] Fix building KernelSU Next with SuSFS..."
+    cd "$kernel_root"
+    patch -p1 <"$build_root/kernel_patches/fix_ksun_with_susfs.patch"
+    if [ $? -ne 0 ]; then
+        echo "[-] Failed to apply fix patch for KernelSU Next with SuSFS."
+        exit 1
+    fi
+    echo "[+] KernelSU Next with SuSFS fix applied successfully."
 }
 function fix_driver_check() {
     # ref to: https://github.com/ravindu644/Android-Kernel-Tutorials/blob/main/patches/010.Disable-CRC-Checks.patch
