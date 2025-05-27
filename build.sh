@@ -3,7 +3,7 @@ official_source="SM-S9210_HKTW_14_Opensource.zip" # change it with you downloade
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
 toolchains_root="$build_root/toolchains"
-kernel_su_next_branch="next"
+kernel_su_next_branch="next-susfs"
 susfs_branch="gki-android14-6.1"
 
 function clean() {
@@ -227,9 +227,15 @@ function add_susfs() {
     fi
     __restore_fix_patch # restore removed samsung's changes
     echo "[+] SuSFS added successfully."
-    cd KernelSU-Next
-    patch -p1 <"$build_root/kernel_patches/0001-kernel-patch-susfs-v1.5.7-to-KernelSU-Next-v1.0.7.patch"
-    cd - >/dev/null
+    # 判断kernel_su_next_branch是否包含susfs
+    if [[ "$kernel_su_next_branch" == *"susfs"* ]]; then
+        echo "[+] SusFS is already included in KernelSU Next branch."
+    else
+        echo "[+] SusFS is not included in KernelSU Next branch, applying patch..."
+        cd KernelSU-Next
+        patch -p1 -l <"$build_root/kernel_patches/0001-kernel-patch-susfs-v1.5.7-to-KernelSU-Next-v1.0.7.patch"
+        cd - >/dev/null
+    fi
 }
 function fix_kernel_su_next_susfs() {
     echo "[+] Applying kernel config tweaks fix susfs with ksun..."
