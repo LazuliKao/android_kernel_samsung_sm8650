@@ -1,7 +1,8 @@
 diff --git a/fs/namespace.c b/fs/namespace.c
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
-@@ -31,5 +31,9 @@
+@@ -32,6 +32,10 @@
+ #include <linux/fs_context.h>
  #include <linux/shmem_fs.h>
  #include <linux/mnt_idmapping.h>
 +#include <linux/fslog.h>
@@ -11,7 +12,17 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  #if defined(CONFIG_KSU_SUSFS_SUS_MOUNT) || defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
  #include <linux/susfs_def.h>
  #endif
-@@ -3936,7 +3939,11 @@
+@@ -1234,6 +1238,9 @@
+ 	struct mnt_namespace *mnt_ns;
+ 	int mnt_id;
+ #endif
++#ifdef CONFIG_KDP_NS
++       struct user_namespace *userns;
++#endif
+ 
+ 	if (!fc->root)
+ 		return ERR_PTR(-EINVAL);
+@@ -4146,7 +4153,11 @@
  	// Always let clone_mnt() in copy_tree() know it is from copy_mnt_ns()
  	copy_flags |= CL_COPY_MNT_NS;
  #endif
@@ -24,14 +35,3 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  	if (IS_ERR(new)) {
  		namespace_unlock();
  		free_mnt_ns(new_ns);
-@@ -1238,6 +1238,9 @@
- 	struct mnt_namespace *mnt_ns;
- 	int mnt_id;
- #endif
-+#ifdef CONFIG_KDP_NS
-+	struct user_namespace *userns;
-+#endif
- 
- 	if (!fc->root)
- 		return ERR_PTR(-EINVAL);
-
