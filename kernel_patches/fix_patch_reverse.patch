@@ -24,3 +24,14 @@ diff --git a/fs/namespace.c b/fs/namespace.c
  	if (IS_ERR(new)) {
  		namespace_unlock();
  		free_mnt_ns(new_ns);
+@@ -1238,6 +1238,9 @@
+ 	struct mnt_namespace *mnt_ns;
+ 	int mnt_id;
+ #endif
++#ifdef CONFIG_KDP_NS
++	struct user_namespace *userns;
++#endif
+ 
+ 	if (!fc->root)
+ 		return ERR_PTR(-EINVAL);
+
