@@ -293,6 +293,91 @@ function fix_samsung_securities() {
     _set_or_add_config CONFIG_PROCA n
     _set_or_add_config CONFIG_FIVE n
 }
+function add_docker_capabilities() {
+    # Add Docker capabilities for building kernel
+    echo "[+] Adding Docker capabilities for building kernel..."
+    _set_or_add_config CONFIG_NAMESPACES y
+    _set_or_add_config CONFIG_NET_NS y
+    _set_or_add_config CONFIG_PID_NS y
+    _set_or_add_config CONFIG_IPC_NS y
+    _set_or_add_config CONFIG_UTS_NS y
+    _set_or_add_config CONFIG_CGROUPS y
+    _set_or_add_config CONFIG_CGROUP_CPUACCT y
+    _set_or_add_config CONFIG_CGROUP_DEVICE y
+    _set_or_add_config CONFIG_CGROUP_FREEZER y
+    _set_or_add_config CONFIG_CGROUP_SCHED y
+    _set_or_add_config CONFIG_CPUSETS y
+    _set_or_add_config CONFIG_MEMCG y
+    _set_or_add_config CONFIG_KEYS y
+    _set_or_add_config CONFIG_VETH y
+    _set_or_add_config CONFIG_BRIDGE y
+    _set_or_add_config CONFIG_BRIDGE_NETFILTER y
+    _set_or_add_config CONFIG_IP_NF_FILTER y
+    _set_or_add_config CONFIG_IP_NF_TARGET_MASQUERADE y
+    _set_or_add_config CONFIG_NETFILTER_XT_MATCH_ADDRTYPE y
+    _set_or_add_config CONFIG_NETFILTER_XT_MATCH_CONNTRACK y
+    _set_or_add_config CONFIG_NETFILTER_XT_MATCH_IPVS y
+    _set_or_add_config CONFIG_NETFILTER_XT_MARK y
+    _set_or_add_config CONFIG_IP_NF_NAT y
+    _set_or_add_config CONFIG_NF_NAT y
+    _set_or_add_config CONFIG_POSIX_MQUEUE y
+    _set_or_add_config CONFIG_NF_NAT_IPV4 y
+    _set_or_add_config CONFIG_NF_NAT_NEEDED y
+    _set_or_add_config CONFIG_CGROUP_BPF y
+    _set_or_add_config CONFIG_USER_NS y
+    _set_or_add_config CONFIG_SECCOMP y
+    _set_or_add_config CONFIG_SECCOMP_FILTER y
+    _set_or_add_config CONFIG_CGROUP_PIDS y
+    _set_or_add_config CONFIG_MEMCG_SWAP y
+    _set_or_add_config CONFIG_MEMCG_SWAP_ENABLED y
+    _set_or_add_config CONFIG_IOSCHED_CFQ y
+    _set_or_add_config CONFIG_CFQ_GROUP_IOSCHED y
+    _set_or_add_config CONFIG_BLK_CGROUP y
+    _set_or_add_config CONFIG_BLK_DEV_THROTTLING y
+    _set_or_add_config CONFIG_CGROUP_PERF y
+    _set_or_add_config CONFIG_CGROUP_HUGETLB y
+    _set_or_add_config CONFIG_NET_CLS_CGROUP y
+    _set_or_add_config CONFIG_CGROUP_NET_PRIO y
+    _set_or_add_config CONFIG_CFS_BANDWIDTH y
+    _set_or_add_config CONFIG_FAIR_GROUP_SCHED y
+    _set_or_add_config CONFIG_RT_GROUP_SCHED y
+    _set_or_add_config CONFIG_IP_NF_TARGET_REDIRECT y
+    _set_or_add_config CONFIG_IP_VS y
+    _set_or_add_config CONFIG_IP_VS_NFCT y
+    _set_or_add_config CONFIG_IP_VS_PROTO_TCP y
+    _set_or_add_config CONFIG_IP_VS_PROTO_UDP y
+    _set_or_add_config CONFIG_IP_VS_RR y
+    _set_or_add_config CONFIG_SECURITY_SELINUX y
+    _set_or_add_config CONFIG_SECURITY_APPARMOR y
+    _set_or_add_config CONFIG_EXT4_FS y
+    _set_or_add_config CONFIG_EXT4_FS_POSIX_ACL y
+    _set_or_add_config CONFIG_EXT4_FS_SECURITY y
+    _set_or_add_config CONFIG_VXLAN y
+    _set_or_add_config CONFIG_BRIDGE_VLAN_FILTERING y
+    _set_or_add_config CONFIG_CRYPTO y
+    _set_or_add_config CONFIG_CRYPTO_AEAD y
+    _set_or_add_config CONFIG_CRYPTO_GCM y
+    _set_or_add_config CONFIG_CRYPTO_SEQIV y
+    _set_or_add_config CONFIG_CRYPTO_GHASH y
+    _set_or_add_config CONFIG_XFRM y
+    _set_or_add_config CONFIG_XFRM_USER y
+    _set_or_add_config CONFIG_XFRM_ALGO y
+    _set_or_add_config CONFIG_INET_ESP y
+    _set_or_add_config CONFIG_INET_XFRM_MODE_TRANSPORT y
+    _set_or_add_config CONFIG_IPVLAN y
+    _set_or_add_config CONFIG_MACVLAN y
+    _set_or_add_config CONFIG_DUMMY y
+    _set_or_add_config CONFIG_NF_NAT_FTP y
+    _set_or_add_config CONFIG_NF_CONNTRACK_FTP y
+    _set_or_add_config CONFIG_NF_NAT_TFTP y
+    _set_or_add_config CONFIG_NF_CONNTRACK_TFTP y
+    _set_or_add_config CONFIG_AUFS_FS y
+    _set_or_add_config CONFIG_BTRFS_FS y
+    _set_or_add_config CONFIG_BTRFS_FS_POSIX_ACL y
+    _set_or_add_config CONFIG_BLK_DEV_DM y
+    _set_or_add_config CONFIG_DM_THIN_PROVISIONING y
+    _set_or_add_config CONFIG_OVERLAY_FS y
+}
 function add_build_script() {
     echo "[+] Adding build script..."
     cp "$build_root/build_kernel_6.1.sh" "$kernel_root/build.sh"
@@ -349,6 +434,7 @@ function main() {
     fix_kernel_su_next_susfs
     fix_driver_check
     fix_samsung_securities
+    add_docker_capabilities
     add_build_script
 
     echo "[+] All done. You can now build the kernel."
