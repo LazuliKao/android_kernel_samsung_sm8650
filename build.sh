@@ -41,6 +41,17 @@ _set_or_add_config() {
         echo "Added $key=$value to $custom_config_file"
     fi
 }
+_apply_patch() {
+    local patch_file="$build_root/kernel_patches/$1"
+    echo "[+] Applying patch: $1"
+    local patch_result=$(patch -p1 -l --forward --fuzz=3 <"$patch_file" 2>&1)
+    if [ $? -ne 0 ]; then
+        echo "[-] Failed to apply patch: $1"
+        echo "$patch_result"
+        echo "[-] Please check the patch file and try again."
+        exit 1
+    fi
+}
 
 function extract_toolchains() {
     echo "[+] Extracting toolchains..."
@@ -241,65 +252,58 @@ function add_susfs() {
     else
         echo "[+] SusFS is not included in KernelSU Next branch, applying patch..."
         cd KernelSU-Next
-        patch -p1 -l <"$build_root/kernel_patches/0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch"
+        _apply_patch "0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch"
         cd - >/dev/null
     fi
 }
 function fix_kernel_su_next_susfs() {
     echo "[+] Applying kernel config tweaks fix susfs with ksun..."
     _set_or_add_config CONFIG_KSU_SUSFS_SUS_SU n
-    echo "[+] Fix building KernelSU Next with SuSFS..."
-    cd "$kernel_root"
     echo "[+] KernelSU Next with SuSFS fix applied successfully."
 }
 function apply_kernelsu_manual_hooks() {
     echo "[+] Applying syscall hooks..."
     cd "$kernel_root"
-    patch -p1 -l --forward --fuzz=3 <"$build_root/kernel_patches/wild_kernels/next/syscall_hooks.patch"
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply syscall hooks patch."
-        exit 1
-    fi
+    _apply_patch "wild_kernels/next/syscall_hooks.patch"
     echo "[+] Syscall hooks applied successfully."
     cd - >/dev/null
+    _set_or_add_config CONFIG_KSU_KPROBES_HOOK n
     _set_or_add_config CONFIG_KSU_WITH_KPROBES n
+}
+function apply_wild_kernels_config() {
+    # Add additional tmpfs config setting
+    _set_or_add_config CONFIG_TMPFS_XATTR y
+    _set_or_add_config CONFIG_TMPFS_POSIX_ACL y
+
+    # Add additional config setting
+    _set_or_add_config CONFIG_IP_NF_TARGET_TTL y
+    _set_or_add_config CONFIG_IP6_NF_TARGET_HL y
+    _set_or_add_config CONFIG_IP6_NF_MATCH_HL y
+
+    # Add BBR Config
+    _set_or_add_config CONFIG_TCP_CONG_ADVANCED y
+    _set_or_add_config CONFIG_TCP_CONG_BBR y
+    _set_or_add_config CONFIG_NET_SCH_FQ y
+    _set_or_add_config CONFIG_TCP_CONG_BIC n
+    _set_or_add_config CONFIG_TCP_CONG_WESTWOOD n
+    _set_or_add_config CONFIG_TCP_CONG_HTCP n
 }
 function apply_wild_kernels_fix() {
     echo "[+] Applying Wild Kernels fix..."
     cd "$kernel_root"
-    patch -p1 -l --forward --fuzz=3 <"$build_root/kernel_patches/wild_kernels/next/fix_apk_sign.c.patch"
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply fix_apk_sign.c.patch."
-        exit 1
-    fi
-    patch -p1 -l --forward --fuzz=3 <"$build_root/kernel_patches/wild_kernels/next/fix_core_hook.c.patch"
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply fix_core_hook.c.patch."
-        exit 1
-    fi
-    patch -p1 -l --forward --fuzz=3 <"$build_root/kernel_patches/wild_kernels/next/fix_selinux.c.patch"
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply fix_selinux.c.patch."
-        exit 1
-    fi
-    patch -p1 -l --forward --fuzz=3 <"$build_root/kernel_patches/wild_kernels/next/fix_ksud.c.patch"
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply fix_ksud.c.patch."
-        exit 1
-    fi
+    _apply_patch "wild_kernels/next/fix_apk_sign.c.patch"
+    _apply_patch "wild_kernels/next/fix_core_hook.c.patch"
+    _apply_patch "wild_kernels/next/fix_selinux.c.patch"
+    _apply_patch "wild_kernels/next/fix_ksud.c.patch"
+    _apply_patch "wild_kernels/69_hide_stuff.patch"
+    _apply_patch "wild_kernels/next/manager.patch"
     echo "[+] Wild Kernels fix applied successfully."
     cd - >/dev/null
 }
 function fix_driver_check() {
     # ref to: https://github.com/ravindu644/Android-Kernel-Tutorials/blob/main/patches/010.Disable-CRC-Checks.patch
-    cd "$build_root"
-    cp "$build_root/kernel_patches/driver_fix.patch" "$kernel_root"
     cd "$kernel_root"
-    patch -p1 <driver_fix.patch
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply driver fix patch."
-        exit 1
-    fi
+    _apply_patch "driver_fix.patch"
 
     #Force Load Kernel Modules
     _set_or_add_config CONFIG_MODULES y
@@ -381,6 +385,7 @@ function main() {
     add_susfs
     fix_kernel_su_next_susfs
     apply_kernelsu_manual_hooks
+    apply_wild_kernels_config
     apply_wild_kernels_fix
     fix_driver_check
     fix_samsung_securities
