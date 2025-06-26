@@ -1,0 +1,3 @@
+[submodule "kernel_patches/wild_kernels"]
+	path = kernel_patches/wild_kernels
+	url = https://github.com/WildKernels/kernel_patches.git

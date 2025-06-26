@@ -3,7 +3,7 @@ official_source="SM-S9210_HKTW_14_Opensource.zip" # change it with you downloade
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
 toolchains_root="$build_root/toolchains"
-kernel_su_next_branch="next-susfs"
+kernel_su_next_branch="v1.0.8"
 susfs_branch="gki-android14-6.1"
 
 function clean() {
@@ -112,7 +112,7 @@ function extract_kernel_config() {
     # if kptools-linux not exists, download it
     if [ ! -f "$kptools" ]; then
         echo "kptools-linux not found, downloading..."
-        wget https://github.com/bmax121/KernelPatch/releases/latest/download/kptools-linux -O "$kptools"
+        wget https://github.com/bmax121/KernelPatch/releases/download/0.11.3/kptools-linux -O "$kptools"
         chmod +x "$kptools"
     fi
     if [ -f "boot.img.lz4" ]; then
@@ -164,7 +164,7 @@ function extract_kernel_config() {
 function add_kernelsu_next() {
     echo "[+] Adding KernelSU Next..."
     cd "$kernel_root"
-    curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s "$kernel_su_next_branch"
+    curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s "$kernel_su_next_branch"
     cd "$build_root"
     echo "[+] KernelSU Next added successfully."
 }
@@ -241,7 +241,7 @@ function add_susfs() {
     else
         echo "[+] SusFS is not included in KernelSU Next branch, applying patch..."
         cd KernelSU-Next
-        patch -p1 -l <"$build_root/kernel_patches/0001-kernel-patch-susfs-v1.5.7-to-KernelSU-Next-v1.0.7.patch"
+        patch -p1 -l <"$build_root/kernel_patches/0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch"
         cd - >/dev/null
     fi
 }
@@ -250,12 +250,45 @@ function fix_kernel_su_next_susfs() {
     _set_or_add_config CONFIG_KSU_SUSFS_SUS_SU n
     echo "[+] Fix building KernelSU Next with SuSFS..."
     cd "$kernel_root"
-    patch -p1 <"$build_root/kernel_patches/fix_ksun_with_susfs.patch"
+    echo "[+] KernelSU Next with SuSFS fix applied successfully."
+}
+function apply_kernelsu_manual_hooks() {
+    echo "[+] Applying syscall hooks..."
+    cd "$kernel_root"
+    patch -p1 -l --forward --fuzz=3 <"$build_root/kernel_patches/wild_kernels/next/syscall_hooks.patch"
     if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply fix patch for KernelSU Next with SuSFS."
+        echo "[-] Failed to apply syscall hooks patch."
         exit 1
     fi
-    echo "[+] KernelSU Next with SuSFS fix applied successfully."
+    echo "[+] Syscall hooks applied successfully."
+    cd - >/dev/null
+    _set_or_add_config CONFIG_KSU_WITH_KPROBES n
+}
+function apply_wild_kernels_fix() {
+    echo "[+] Applying Wild Kernels fix..."
+    cd "$kernel_root"
+    patch -p1 -l --forward --fuzz=3 <"$build_root/kernel_patches/wild_kernels/next/fix_apk_sign.c.patch"
+    if [ $? -ne 0 ]; then
+        echo "[-] Failed to apply fix_apk_sign.c.patch."
+        exit 1
+    fi
+    patch -p1 -l --forward --fuzz=3 <"$build_root/kernel_patches/wild_kernels/next/fix_core_hook.c.patch"
+    if [ $? -ne 0 ]; then
+        echo "[-] Failed to apply fix_core_hook.c.patch."
+        exit 1
+    fi
+    patch -p1 -l --forward --fuzz=3 <"$build_root/kernel_patches/wild_kernels/next/fix_selinux.c.patch"
+    if [ $? -ne 0 ]; then
+        echo "[-] Failed to apply fix_selinux.c.patch."
+        exit 1
+    fi
+    patch -p1 -l --forward --fuzz=3 <"$build_root/kernel_patches/wild_kernels/next/fix_ksud.c.patch"
+    if [ $? -ne 0 ]; then
+        echo "[-] Failed to apply fix_ksud.c.patch."
+        exit 1
+    fi
+    echo "[+] Wild Kernels fix applied successfully."
+    cd - >/dev/null
 }
 function fix_driver_check() {
     # ref to: https://github.com/ravindu644/Android-Kernel-Tutorials/blob/main/patches/010.Disable-CRC-Checks.patch
@@ -347,6 +380,8 @@ function main() {
     add_kernelsu_next
     add_susfs
     fix_kernel_su_next_susfs
+    apply_kernelsu_manual_hooks
+    apply_wild_kernels_fix
     fix_driver_check
     fix_samsung_securities
     add_build_script
