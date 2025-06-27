@@ -149,7 +149,31 @@ apply_wild_kernels_config() {
     _set_or_add_config CONFIG_TCP_CONG_HTCP n
 }
 
+prepare_wild_patches() {
+    # check if wild_kernels directory exists
+    local wild_kernels_dir="$build_root/kernel_patches/wild_kernels"
+    if [ ! -d "$wild_kernels_dir" ]; then
+        echo "[+] Cloning Wild Kernels repository..."
+        git clone https://github.com/WildKernels/kernel_patches.git "$wild_kernels_dir" --depth 1
+        if [ $? -ne 0 ]; then
+            echo "[-] Failed to clone Wild Kernels repository."
+            exit 1
+        fi
+    else
+        echo "[+] Wild Kernels repository already exists, updating..."
+        cd "$wild_kernels_dir"
+        git fetch origin
+        git reset --hard origin/main
+        if [ $? -ne 0 ]; then
+            echo "[-] Failed to update Wild Kernels repository."
+            exit 1
+        fi
+        cd - >/dev/null
+    fi
+}
+
 apply_wild_kernels_fix_for_next() {
+    prepare_wild_patches
     echo "[+] Applying Wild Kernels fix..."
     cd "$kernel_root"
 
@@ -289,8 +313,9 @@ add_susfs_prepare() {
         echo "[+] SusFS is already included in KernelSU Next branch."
     else
         echo "[+] SusFS is not included in KernelSU Next branch, applying patch..."
-        cd KernelSU-Next
-        if ! _apply_patch "0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch"; then
+        prepare_wild_patches
+        cd "$kernel_root/KernelSU-Next"
+        if ! _apply_patch "wild_kernels/next/0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch"; then
             echo "[-] Failed to apply SuSFS integration patch"
             exit 1
         fi
