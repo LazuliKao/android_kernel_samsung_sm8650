@@ -5,54 +5,29 @@ kernel_root="$build_root/kernel_source"
 toolchains_root="$build_root/toolchains"
 kernel_su_next_branch="v1.0.8"
 susfs_branch="gki-android14-6.1"
+container_name="sm8650-kernel-builder"
 
-function clean() {
-    rm -rf "$kernel_root"
-}
+kernel_build_script="build_kernel_6.1.sh"
+support_kernel="6.1" # only support 6.1 kernel
+kernel_source_link="https://opensource.samsung.com/uploadSearch?searchValue=SM-S92"
+kernel_toolchains_link="https://opensource.samsung.com/uploadSearch?searchValue=S24(Qualcomm)"
 
 custom_config_name="pineapple_gki_defconfig"
 custom_config_file="$kernel_root/arch/arm64/configs/$custom_config_name"
 
-_set_config() {
-    key=$1
-    value=$2
-    original=$(grep "^$key=" "$custom_config_file" | cut -d'=' -f2)
-    echo "Setting $key=$value (original: $original)"
-    sed -i "s/^\($key\s*=\s*\).*\$/\1$value/" "$custom_config_file"
-}
-_set_config_quote() {
-    key=$1
-    value=$2
-    original=$(grep "^$key=" "$custom_config_file" | cut -d'=' -f2)
-    echo "Setting $key=\"$value\" (original: $original)"
-    sed -i "s/^\($key\s*=\s*\).*\$/\1\"$value\"/" "$custom_config_file"
-}
-_get_config() {
-    key=$1
-    grep "^$key=" "$custom_config_file" | cut -d'=' -f2
-}
-_set_or_add_config() {
-    key=$1
-    value=$2
-    if grep -q "^$key=" "$custom_config_file"; then
-        _set_config "$key" "$value"
-    else
-        echo "$key=$value" >>"$custom_config_file"
-        echo "Added $key=$value to $custom_config_file"
-    fi
-}
-_apply_patch() {
-    local patch_file="$build_root/kernel_patches/$1"
-    echo "[+] Applying patch: $1"
-    local patch_result=$(patch -p1 -l --forward --fuzz=3 <"$patch_file" 2>&1)
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply patch: $1"
-        echo "$patch_result"
-        echo "[-] Please check the patch file and try again."
-        exit 1
-    fi
-}
+# Load utility functions
+lib_file="$build_root/lib.sh"
+if [ -f "$lib_file" ]; then
+    source "$lib_file"
+else
+    echo "[-] Error: Library file not found: $lib_file"
+    echo "[-] Please ensure lib.sh exists in the build directory"
+    exit 1
+fi
 
+function clean() {
+    rm -rf "$kernel_root"
+}
 function extract_toolchains() {
     echo "[+] Extracting toolchains..."
     if [ -d "$toolchains_root" ]; then
@@ -64,7 +39,7 @@ function extract_toolchains() {
     echo "[+] toolchains not found. Extracting from $toolchains_file..."
     if [ ! -f "$toolchains_file" ]; then
         echo "Please download the official toolchians from Samsung Open Source Release Center."
-        echo "link: https://opensource.samsung.com/uploadSearch?searchValue=S24(Qualcomm)"
+        echo "link: $kernel_toolchains_link"
         exit 1
     fi
     mkdir -p "$toolchains_root"
@@ -84,7 +59,7 @@ function prepare_source() {
             echo "[+] Kernel.tar.gz not found. Extracting from $official_source..."
             if [ ! -f "$official_source" ]; then
                 echo "Please download the official source code from Samsung Open Source Release Center."
-                echo "link: https://opensource.samsung.com/uploadSearch?searchValue=SM-S92"
+                echo "link: $kernel_source_link"
                 exit 1
             fi
             unzip -o -q "$official_source" "Kernel.tar.gz"
@@ -100,12 +75,11 @@ function prepare_source() {
         fi
         cd "$kernel_root"
         echo "[+] Checking kernel version..."
-        local kernel_version=$(make kernelversion)
+        local kernel_version=$(get_kernel_version)
         local kernel_kmi_version=$(echo $kernel_version | cut -d '.' -f 1-2)
         echo "[+] Kernel version: $kernel_version, KMI version: $kernel_kmi_version"
-        # only support 6.1
-        if [ "$kernel_kmi_version" != "6.1" ]; then
-            echo "Kernel version is not 6.1. Please check the official source code."
+        if [ "$kernel_kmi_version" != "$support_kernel" ]; then
+            echo "Kernel version is not $support_kernel. Please check the official source code."
             exit 1
         fi
         echo "[+] Setting up permissions..."
@@ -252,7 +226,10 @@ function add_susfs() {
     else
         echo "[+] SusFS is not included in KernelSU Next branch, applying patch..."
         cd KernelSU-Next
-        _apply_patch "0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch"
+        if ! _apply_patch "0001-kernel-implement-susfs-v1.5.8-KernelSU-Next-v1.0.8.patch"; then
+            echo "[-] Failed to apply SuSFS integration patch"
+            exit 1
+        fi
         cd - >/dev/null
     fi
 }
@@ -264,7 +241,10 @@ function fix_kernel_su_next_susfs() {
 function apply_kernelsu_manual_hooks() {
     echo "[+] Applying syscall hooks..."
     cd "$kernel_root"
-    _apply_patch "wild_kernels/next/syscall_hooks.patch"
+    if ! _apply_patch "wild_kernels/next/syscall_hooks.patch"; then
+        echo "[-] Failed to apply syscall hooks patch"
+        exit 1
+    fi
     echo "[+] Syscall hooks applied successfully."
     cd - >/dev/null
     _set_or_add_config CONFIG_KSU_KPROBES_HOOK n
@@ -291,19 +271,33 @@ function apply_wild_kernels_config() {
 function apply_wild_kernels_fix() {
     echo "[+] Applying Wild Kernels fix..."
     cd "$kernel_root"
-    _apply_patch "wild_kernels/next/fix_apk_sign.c.patch"
-    _apply_patch "wild_kernels/next/fix_core_hook.c.patch"
-    _apply_patch "wild_kernels/next/fix_selinux.c.patch"
-    _apply_patch "wild_kernels/next/fix_ksud.c.patch"
-    _apply_patch "wild_kernels/69_hide_stuff.patch"
-    _apply_patch "wild_kernels/next/manager.patch"
+
+    local patches=(
+        "wild_kernels/next/fix_apk_sign.c.patch"
+        "wild_kernels/next/fix_core_hook.c.patch"
+        "wild_kernels/next/fix_selinux.c.patch"
+        "wild_kernels/next/fix_ksud.c.patch"
+        "wild_kernels/next/manager.patch"
+        "wild_kernels/69_hide_stuff.patch"
+    )
+
+    for patch in "${patches[@]}"; do
+        if ! _apply_patch "$patch"; then
+            echo "[-] Failed to apply wild kernels patch: $patch"
+            exit 1
+        fi
+    done
+
     echo "[+] Wild Kernels fix applied successfully."
     cd - >/dev/null
 }
 function fix_driver_check() {
     # ref to: https://github.com/ravindu644/Android-Kernel-Tutorials/blob/main/patches/010.Disable-CRC-Checks.patch
     cd "$kernel_root"
-    _apply_patch "driver_fix.patch"
+    if ! _apply_patch "driver_fix.patch"; then
+        echo "[-] Failed to apply driver fix patch"
+        exit 1
+    fi
 
     #Force Load Kernel Modules
     _set_or_add_config CONFIG_MODULES y
@@ -332,10 +326,27 @@ function fix_samsung_securities() {
 }
 function add_build_script() {
     echo "[+] Adding build script..."
-    cp "$build_root/build_kernel_6.1.sh" "$kernel_root/build.sh"
+    cp "$build_root/$kernel_build_script" "$kernel_root/build.sh"
     sed -i "s/gki_defconfig/$custom_config_name/" "$kernel_root/build.sh"
     chmod +x "$kernel_root/build.sh"
     echo "[+] Build script added successfully."
+}
+function print_usage() {
+    echo "Usage: $0 [container|clean|prepare]"
+    echo "  container: Build the Docker container for kernel compilation"
+    echo "  clean: Clean the kernel source directory"
+    echo "  prepare: Prepare the kernel source directory"
+    echo "  (default): Run the main build process"
+}
+function print_docker_usage() {
+    echo "To build the kernel using Docker, run:"
+    echo "docker run --rm -it -v \"$kernel_root:/workspace\" -v \"$toolchains_root:/toolchains\" $container_name /workspace/build.sh"
+    echo ""
+    echo "This will mount your current directory to /workspace in the container"
+    echo "and run the build.sh script inside the container."
+    echo ""
+    echo "If you want to open a shell in the container for manual operations:"
+    echo "docker run --rm -it -v \"$kernel_root:/workspace\" -v \"$toolchains_root:/toolchains\" $container_name /bin/bash"
 }
 function build_container() {
     echo "[+] Building Docker container for kernel compilation..."
@@ -349,38 +360,37 @@ function build_container() {
 
     # Build Docker image from Dockerfile
     cd "$build_root"
-    docker build -t sm8650-kernel-builder .
+    docker build -t $container_name .
 
     if [ $? -ne 0 ]; then
         echo "[-] Failed to build Docker image."
         return 1
     fi
 
-    echo "[+] Docker image 'sm8650-kernel-builder' built successfully."
+    echo "[+] Docker image '$container_name' built successfully."
     echo "[+] You can now use the container to build the kernel."
-    echo ""
-    echo "To run a one-time container and build the kernel, use:"
-    echo "docker run --rm -it -v \"$kernel_root:/workspace\" -v \"$toolchains_root:/toolchains\" sm8650-kernel-builder /workspace/build.sh"
-    echo ""
-    echo "This will mount your current directory to /workspace in the container"
-    echo "and run the build.sh script inside the container."
-    echo ""
-    echo "If you want to open a shell in the container for manual operations:"
-    echo "docker run --rm -it -v \"$kernel_root:/workspace\" -v \"$toolchains_root:/toolchains\" sm8650-kernel-builder /bin/bash"
+    print_docker_usage
 
     return 0
 }
 
 function main() {
-    if [ "$1" = "container" ]; then
-        build_container
-        return $?
+    echo "[+] Starting kernel build process..."
+
+    # Validate environment before proceeding
+    if ! validate_environment; then
+        echo "[-] Environment validation failed"
+        exit 1
     fi
 
     extract_toolchains
     clean
     prepare_source
     extract_kernel_config
+
+    # Show configuration summary
+    show_config_summary
+
     add_kernelsu_next
     add_susfs
     fix_kernel_su_next_susfs
@@ -395,14 +405,55 @@ function main() {
     echo "[+] Please 'cd $kernel_root'"
     echo "[+] Run the build script with ./build.sh"
     echo ""
-    echo "To build using Docker container instead:"
-    echo "./build.sh container"
+
+    if docker images | grep -q "$container_name"; then
+        print_docker_usage
+    else
+        echo "To build using Docker container instead:"
+        echo "./build.sh container"
+    fi
 }
 
-# If the first argument is "container", only build the container
-if [ "$1" = "container" ]; then
+case "${1:-}" in
+"container")
     build_container
     exit $?
-else
+    ;;
+"clean")
+    clean
+    echo "[+] Cleaned kernel source directory."
+    exit 0
+    ;;
+"prepare")
+    prepare_source
+    echo "[+] Prepared kernel source directory."
+    exit 0
+    ;;
+"?" | "help" | "--help" | "-h")
+    print_usage
+    exit 0
+    ;;
+"kernel")
     main
-fi
+    # build container if not exists
+    if ! docker images | grep -q "$container_name"; then
+        build_container
+        if [ $? -ne 0 ]; then
+            echo "[-] Failed to build Docker container."
+            exit 1
+        fi
+    fi
+    echo "[+] Building kernel using Docker container..."
+    docker run --rm -it -v "$kernel_root:/workspace" -v "$toolchains_root:/toolchains" $container_name /workspace/build.sh
+
+    exit 0
+    ;;
+"")
+    main
+    ;;
+*)
+    echo "[-] Unknown option: $1"
+    print_usage
+    exit 1
+    ;;
+esac

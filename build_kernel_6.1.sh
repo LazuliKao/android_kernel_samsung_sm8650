@@ -33,7 +33,7 @@ O=$KERNEL_ROOT/out
     make ${BUILD_OPTIONS} $TARGET_DEFCONFIG
 
     # Configure the kernel (GUI)
-    make ${BUILD_OPTIONS} menuconfig
+    # make ${BUILD_OPTIONS} menuconfig
 
     # Set the kernel configuration, Disable unnecessary features
     ./scripts/config --file out/.config \
