@@ -128,6 +128,7 @@ apply_kernelsu_manual_hooks_for_next() {
     cd - >/dev/null
     _set_or_add_config CONFIG_KSU_KPROBES_HOOK n
     _set_or_add_config CONFIG_KSU_WITH_KPROBES n
+    _set_or_add_config CONFIG_KSU_MANUAL_HOOK y
 }
 
 apply_wild_kernels_config() {
