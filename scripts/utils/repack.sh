@@ -103,17 +103,22 @@ update_kernel_prop() {
 
 pack_anykernel() {
     local new_kernel=$(realpath "$1")
+    local device_names="${2:-r0q,r0p,r0x}"
+    local kernel_name="${3:-CustomKernel-${LOCALVERSION}}"
     local anykernel_dir="./AnyKernel3"
+
     if [ -d "$anykernel_dir" ]; then
         rm -rf "$anykernel_dir"
         echo "[+] Removed existing AnyKernel directory."
     fi
-    if [ ! -d "$anykernel_dir" ]; then
-        git clone https://github.com/osm0sis/AnyKernel3 "$anykernel_dir"
-    fi
+
+    echo "[+] Cloning AnyKernel3..."
+    git clone https://github.com/osm0sis/AnyKernel3 "$anykernel_dir"
+
     pushd "$anykernel_dir" >/dev/null
     cp "$new_kernel" zImage
-    update_kernel_prop
+    update_kernel_prop "$kernel_name" "$device_names"
+
     local targetZip="../dist/AnyKernel.zip"
     if [ ! -d "../dist" ]; then
         mkdir -p ../dist
@@ -122,22 +127,74 @@ pack_anykernel() {
         rm -f "$targetZip"
         echo "[+] Removed existing AnyKernel.zip."
     fi
+
     zip -r9 "$targetZip" * -x "*.zip" "*.git*" "README.md"
     echo "[+] AnyKernel.zip created: $(realpath "$targetZip")"
     popd >/dev/null
 }
 
-# mkdir -p build && cd build
-# repack_stock_img ../stock/boot.img ../out/arch/arm64/boot/Image
-# pack_anykernel ../out/arch/arm64/boot/Image "r0q,r0p,r0x"
+# Get kernel version from Makefile
+__get_kernel_version() {
+    local kernel_root="$KERNEL_ROOT"
+    if [ -z "$kernel_root" ]; then
+        echo "[-] Error: kernel_root is not set"
+        return 1
+    fi
+
+    if [ ! -f "$kernel_root/Makefile" ]; then
+        echo "[-] Error: Makefile not found in $kernel_root"
+        return 1
+    fi
+
+    # Get the kernel version from the Makefile
+    local version=$(grep -E '^VERSION =|^PATCHLEVEL =|^SUBLEVEL =' "$kernel_root/Makefile" | awk '{print $3}' | tr '\n' '.')
+    # Remove the trailing dot
+    version=${version%.}
+    echo "$version"
+}
+
+__get_susfs_version() {
+    pushd "$KERNEL_ROOT" >/dev/null
+    local SUSFS_VERSION=""
+    if [ -f "include/linux/susfs.h" ]; then
+        SUSFS_VERSION=$(cat include/linux/susfs.h | grep -E '^#define SUSFS_VERSION' | cut -d' ' -f3 | sed 's/"//g')
+    fi
+    echo "${SUSFS_VERSION:-Not found}"
+    popd >/dev/null
+}
+__get_ksu_version() {
+    pushd "$KERNEL_ROOT" >/dev/null
+    local KSU_VERSION=""
+    if [ -d "drivers/kernelsu" ]; then
+        cd drivers/kernelsu
+        local KSU_LOCAL_VERSION=$(git rev-list --count HEAD 2>/dev/null || echo "0")
+        KSU_VERSION=$((10000 + $KSU_LOCAL_VERSION + 200))
+        cd - >/dev/null
+    fi
+    echo "${KSU_VERSION:-Not found}"
+    popd >/dev/null
+}
 
 generate_info() {
+    if [ -z "$KERNEL_ROOT" ]; then
+        echo "[-] KERNEL_ROOT is not set. Please set it to the root of your kernel source."
+        exit 1
+    fi
+    local build_date=$(date '+%Y-%m-%d %H:%M:%S')
+    local kernel_version=$(__get_kernel_version)
+    local susfs_version=$(__get_susfs_version)
+    local ksu_version=$(__get_ksu_version)
 
-}
-susfs_version() {
-    local SUSFS_VERSION=$(cat include/linux/susfs.h | grep -E '^#define SUSFS_VERSION' | cut -d' ' -f3 | sed 's/"//g')
-    cd drivers/kernelsu
-    local KSU_LOCAL_VERSION=$(git rev-list --count HEAD)
-    local KSU_VERSION=$((10000 + $KSU_LOCAL_VERSION + 200))
-    cd - >/dev/null
+    cat >"./dist/build_info.txt" <<EOF
+Kernel Build Information
+========================
+Build Date: $build_date
+Kernel Version: $kernel_version
+Local Version: $LOCALVERSION
+SUSFS Version: $susfs_version
+KSU Version: $ksu_version
+Architecture: $ARCH
+Compiler: $(clang --version | head -n1)
+EOF
+    echo "[+] Build info saved to ./dist/build_info.txt"
 }
