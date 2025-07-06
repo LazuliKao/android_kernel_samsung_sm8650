@@ -23,6 +23,6 @@ RUN apt-get update && apt-get install -y \
 
 # fix git safe directory issue
 RUN git config --global --add safe.directory '*'
-
+RUN git config --global advice.detachedHead false
 # Set default command
 CMD ["/bin/bash"]
