@@ -1,14 +1,3 @@
-check_env() {
-    # if [ -z "$KERNEL_ROOT" ]; then
-    #     echo "[-] KERNEL_ROOT is not set. Please set it to the root of your kernel source."
-    #     exit 1
-    # fi
-    # if [ ! -d "$KERNEL_ROOT" ]; then
-    #     echo "[-] KERNEL_ROOT directory does not exist: $KERNEL_ROOT"
-    #     exit 1
-    # fi
-}
-
 prepare_magiskboot() {
     local tools_dir="./tools"
     local tools_bin_dir="$tools_dir/bin"
@@ -84,6 +73,7 @@ update_kernel_prop() {
     # anykernel.sh
     local kernel_name="$1"
     local device_names="$2"
+
     sed -i "s|^kernel.string=.*|kernel.string=$kernel_name|" anykernel.sh
     # remove device.name\d=.*
     sed -i "/^device.name[1-5]/d" anykernel.sh
@@ -94,17 +84,23 @@ update_kernel_prop() {
         idx=$((idx + 1))
     done
     sed -i "s|^BLOCK=.*|BLOCK=/dev/block/by-name/boot;|" anykernel.sh
-    sed -i "s|^IS_SLOT_DEVICE=.*|IS_SLOT_DEVICE=auto;|" anykernel.sh
-    # comment all line after dump_boot
-    sed -i '/^dump_boot/,$ s/^/#/' anykernel.sh
-    echo "split_boot;" >>anykernel.sh
-    echo "flash_boot;" >>anykernel.sh
+    if [ -z "$SPLIT_BOOT" ]; then
+        SPLIT_BOOT="true"
+    fi
+    if [ "$SPLIT_BOOT" = "true" ]; then
+        sed -i "s|^IS_SLOT_DEVICE=.*|IS_SLOT_DEVICE=auto;|" anykernel.sh
+        # comment all line after dump_boot
+        sed -i '/^dump_boot/,$ s/^/#/' anykernel.sh
+        echo "split_boot;" >>anykernel.sh
+        echo "flash_boot;" >>anykernel.sh
+    fi
 }
 
 pack_anykernel() {
     local new_kernel=$(realpath "$1")
     local device_names="${2:-r0q,r0p,r0x}"
     local kernel_name="${3:-CustomKernel-${LOCALVERSION}}"
+
     local anykernel_dir="./AnyKernel3"
 
     if [ -d "$anykernel_dir" ]; then

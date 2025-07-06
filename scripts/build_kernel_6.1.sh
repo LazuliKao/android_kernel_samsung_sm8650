@@ -5,6 +5,7 @@ export ARCH=arm64
 export KBUILD_BUILD_USER="@lk"
 LOCALVERSION=-android14-lk
 TARGET_DEFCONFIG=${1:-gki_defconfig}
+DEVICE_NAME_LIST="e1q,e2s,e3q"
 
 function prepare_toolchain() {
     # Install the requirements for building the kernel when running the script for the first time
@@ -71,7 +72,7 @@ function repack() {
 
     # AnyKernel
     echo "[+] Creating AnyKernel package..."
-    pack_anykernel "$new_kernel" "r0q,r0p,r0x"
+    pack_anykernel "$new_kernel" "$DEVICE_NAME_LIST"
 
     # boot.img
     if [ ! -f "$stock_boot_img" ]; then

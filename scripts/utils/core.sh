@@ -1,6 +1,9 @@
+export GIT_ADVICE_DETACHED_HEAD=false
+
 clean() {
     rm -rf "$kernel_root"
 }
+
 prepare_source() {
     local use_strip_components=${1:-true}
     if [ ! -d "$kernel_root" ]; then
@@ -179,10 +182,10 @@ apply_wild_kernels_fix_for_next() {
     cd "$kernel_root"
 
     local patches=(
-        "wild_kernels/next/fix_apk_sign.c.patch"
-        "wild_kernels/next/fix_core_hook.c.patch"
-        "wild_kernels/next/fix_selinux.c.patch"
-        "wild_kernels/next/fix_ksud.c.patch"
+        "wild_kernels/next/susfs_fix_patches/v1.5.8/fix_apk_sign.c.patch"
+        "wild_kernels/next/susfs_fix_patches/v1.5.8/fix_core_hook.c.patch"
+        "wild_kernels/next/susfs_fix_patches/v1.5.8/fix_selinux.c.patch"
+        "wild_kernels/next/susfs_fix_patches/v1.5.8/fix_ksud.c.patch"
         "wild_kernels/next/manager.patch"
         "wild_kernels/69_hide_stuff.patch"
     )
@@ -236,8 +239,10 @@ fix_samsung_securities() {
 add_build_script() {
     echo "[+] Adding build script..."
     cp "$build_root/$kernel_build_script" "$kernel_root/build.sh"
+    cp "$build_root/scripts/utils/repack.sh" "$kernel_root/repack.sh"
     sed -i "s/gki_defconfig/$custom_config_name/" "$kernel_root/build.sh"
     chmod +x "$kernel_root/build.sh"
+    chmod +x "$kernel_root/repack.sh"
     echo "[+] Build script added successfully."
 }
 
