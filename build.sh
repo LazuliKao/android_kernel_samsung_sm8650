@@ -1,11 +1,11 @@
 #!/bin/bash
-SUSFS_REPO="https://github.com/ShirkNeko/susfs4ksu.git"
-
 official_source="SM-S9210_HKTW_14_Opensource.zip" # change it with you downloaded file
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
 toolchains_root="$build_root/toolchains"
-kernel_su_next_branch="v1.0.8"
+SUSFS_REPO="https://github.com/ShirkNeko/susfs4ksu.git"
+KERNELSU_INSTALL_SCRIPT="https://raw.githubusercontent.com/pershoot/KernelSU-Next/next-susfs/kernel/setup.sh"
+kernel_su_next_branch="next-susfs"
 susfs_branch="gki-android14-6.1"
 container_name="sm8650-kernel-builder"
 
