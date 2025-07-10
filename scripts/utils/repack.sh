@@ -109,7 +109,7 @@ pack_anykernel() {
     fi
 
     echo "[+] Cloning AnyKernel3..."
-    git clone https://github.com/osm0sis/AnyKernel3 "$anykernel_dir"
+    git clone --branch arm64-tools https://github.com/osm0sis/AnyKernel3 "$anykernel_dir"
 
     pushd "$anykernel_dir" >/dev/null
     cp "$new_kernel" zImage
@@ -175,6 +175,9 @@ generate_info() {
     if [ -z "$KERNEL_ROOT" ]; then
         echo "[-] KERNEL_ROOT is not set. Please set it to the root of your kernel source."
         exit 1
+    fi
+    if [ ! -d "./dist" ]; then
+        mkdir -p ./dist
     fi
     local build_date=$(date '+%Y-%m-%d %H:%M:%S')
     local kernel_version=$(__get_kernel_version)
