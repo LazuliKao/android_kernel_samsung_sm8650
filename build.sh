@@ -1,4 +1,6 @@
 #!/bin/bash
+SUSFS_REPO="https://github.com/ShirkNeko/susfs4ksu.git"
+
 official_source="SM-S9210_HKTW_14_Opensource.zip" # change it with you downloaded file
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
