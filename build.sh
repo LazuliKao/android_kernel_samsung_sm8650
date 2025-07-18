@@ -2,10 +2,10 @@
 official_source="SM-S9210_HKTW_14_Opensource.zip" # change it with you downloaded file
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
-toolchains_root="$build_root/toolchains"
-SUSFS_REPO="https://github.com/ShirkNeko/susfs4ksu.git"
-KERNELSU_INSTALL_SCRIPT="https://raw.githubusercontent.com/pershoot/KernelSU-Next/next-susfs/kernel/setup.sh"
-kernel_su_next_branch="next-susfs"
+cache_root="${CACHE_ROOT:-$build_root/cache}"
+susfs_repo="https://github.com/ShirkNeko/susfs4ksu.git"
+ksu_install_script="https://raw.githubusercontent.com/pershoot/KernelSU-Next/next-susfs/kernel/setup.sh"
+ksu_branch="next-susfs"
 susfs_branch="gki-android14-6.1"
 container_name="sm8650-kernel-builder"
 
@@ -17,23 +17,13 @@ kernel_toolchains_link="https://opensource.samsung.com/uploadSearch?searchValue=
 custom_config_name="pineapple_gki_defconfig"
 custom_config_file="$kernel_root/arch/arm64/configs/$custom_config_name"
 
-# Load utility functions
-lib_file="$build_root/scripts/utils/lib.sh"
-if [ -f "$lib_file" ]; then
-    source "$lib_file"
-else
-    echo "[-] Error: Library file not found: $lib_file"
-    echo "[-] Please ensure lib.sh exists in the build directory"
-    exit 1
-fi
-core_file="$build_root/scripts/utils/core.sh"
-if [ -f "$core_file" ]; then
-    source "$core_file"
-else
-    echo "[-] Error: Core file not found: $core_file"
-    echo "[-] Please ensure lib.sh exists in the build directory"
-    exit 1
-fi
+
+source "$build_root/scripts/utils/lib.sh"
+source "$build_root/scripts/utils/core.sh"
+config_hash=$(generate_config_hash "${ksu_branch}" "${susfs_branch}")
+cache_config_dir="$cache_root/config_${config_hash}"
+# Toolchains are shared across all configurations
+toolchains_root="$cache_root/toolchains-sm8650"
 
 function extract_toolchains() {
     echo "[+] Extracting toolchains..."
@@ -106,10 +96,24 @@ function print_usage() {
     echo "  clean: Clean the kernel source directory"
     echo "  prepare: Prepare the kernel source directory"
     echo "  (default): Run the main build process"
+    echo ""
+    echo "Environment Variables:"
+    echo "  CACHE_ROOT: Set custom cache directory for tools and toolchains"
+    echo "              Default: $build_root/cache"
+    echo "              Current: $cache_root"
+    echo ""
+    echo "Configuration-specific cache directory:"
+    echo "  Based on KSU branch: $ksu_branch"
+    echo "  Based on SuSFS branch: $susfs_branch"
+    echo "  Cache subdirectory: $cache_config_dir"
 }
 
 function main() {
     echo "[+] Starting kernel build process..."
+    echo "[+] Configuration: KSU=${ksu_branch}, SuSFS=${susfs_branch}"
+    echo "[+] Cache directory: $cache_root"
+    echo "[+] Shared toolchains: $toolchains_root"
+    echo "[+] Configuration-specific cache: $cache_config_dir"
 
     # Validate environment before proceeding
     if ! validate_environment; then
