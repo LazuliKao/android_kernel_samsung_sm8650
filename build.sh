@@ -2,10 +2,21 @@
 official_source="SM-S9210_HKTW_14_Opensource.zip" # change it with you downloaded file
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
+
 cache_root="${CACHE_ROOT:-$build_root/cache}"
+
+# == SukiSU-Ultra + SuSFS ==
+ksu_add_susfs=true
+ksu_platform="sukisu-ultra"
+ksu_install_script="https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
+ksu_branch="susfs-main"
+# == KernelSU-Next with SuSFS ==
+# ksu_add_susfs=true
+# ksu_platform="ksu-next"
+# ksu_install_script="https://raw.githubusercontent.com/pershoot/KernelSU-Next/next-susfs/kernel/setup.sh"
+# ksu_branch="next-susfs"
+
 susfs_repo="https://github.com/ShirkNeko/susfs4ksu.git"
-ksu_install_script="https://raw.githubusercontent.com/pershoot/KernelSU-Next/next-susfs/kernel/setup.sh"
-ksu_branch="next-susfs"
 susfs_branch="gki-android14-6.1"
 container_name="sm8650-kernel-builder"
 
@@ -16,7 +27,6 @@ kernel_toolchains_link="https://opensource.samsung.com/uploadSearch?searchValue=
 
 custom_config_name="pineapple_gki_defconfig"
 custom_config_file="$kernel_root/arch/arm64/configs/$custom_config_name"
-
 
 source "$build_root/scripts/utils/lib.sh"
 source "$build_root/scripts/utils/core.sh"
@@ -129,11 +139,15 @@ function main() {
     show_config_summary
 
     add_kernelsu_next
-    add_susfs
-    fix_kernel_su_next_susfs
     apply_kernelsu_manual_hooks_for_next
+    if [ "$ksu_add_susfs" = true ]; then
+        add_susfs
+        if [ "$ksu_platform" = "ksu-next" ]; then
+            fix_kernel_su_next_susfs
+            apply_wild_kernels_fix_for_next
+        fi
+    fi
     apply_wild_kernels_config
-    apply_wild_kernels_fix_for_next
     fix_driver_check
     fix_samsung_securities
     add_build_script
