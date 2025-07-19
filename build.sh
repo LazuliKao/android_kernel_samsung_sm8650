@@ -32,8 +32,8 @@ source "$build_root/scripts/utils/lib.sh"
 source "$build_root/scripts/utils/core.sh"
 config_hash=$(generate_config_hash "${ksu_branch}" "${susfs_branch}")
 cache_config_dir="$cache_root/config_${config_hash}"
-# Toolchains are shared across all configurations
-toolchains_root="$cache_root/toolchains-sm8650"
+cache_platform_dir="$cache_root/sm8650"
+toolchains_root="$cache_platform_dir/toolchains"
 
 function extract_toolchains() {
     echo "[+] Extracting toolchains..."
@@ -138,15 +138,13 @@ function main() {
 
     show_config_summary
 
-    add_kernelsu_next
-    apply_kernelsu_manual_hooks_for_next
+    add_kernelsu
+    apply_kernelsu_manual_hooks
     if [ "$ksu_add_susfs" = true ]; then
         add_susfs
-        if [ "$ksu_platform" = "ksu-next" ]; then
-            fix_kernel_su_next_susfs
-            apply_wild_kernels_fix_for_next
-        fi
+        [ "$ksu_platform" = "ksu-next" ] && fix_kernel_su_next_susfs
     fi
+    [ "$ksu_platform" = "ksu-next" ] && apply_wild_kernels_fix_for_next
     apply_wild_kernels_config
     fix_driver_check
     fix_samsung_securities
