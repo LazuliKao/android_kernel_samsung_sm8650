@@ -6,15 +6,15 @@ kernel_root="$build_root/kernel_source"
 cache_root="${CACHE_ROOT:-$build_root/cache}"
 
 # == SukiSU-Ultra + SuSFS ==
-ksu_add_susfs=true
-ksu_platform="sukisu-ultra"
-ksu_install_script="https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
-ksu_branch="susfs-main"
-# == KernelSU-Next with SuSFS ==
 # ksu_add_susfs=true
-# ksu_platform="ksu-next"
-# ksu_install_script="https://raw.githubusercontent.com/pershoot/KernelSU-Next/next-susfs/kernel/setup.sh"
-# ksu_branch="next-susfs"
+# ksu_platform="sukisu-ultra"
+# ksu_install_script="https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
+# ksu_branch="susfs-main"
+# == KernelSU-Next with SuSFS ==
+ksu_add_susfs=true
+ksu_platform="ksu-next"
+ksu_install_script="https://raw.githubusercontent.com/pershoot/KernelSU-Next/next-susfs/kernel/setup.sh"
+ksu_branch="next-susfs"
 
 susfs_repo="https://github.com/ShirkNeko/susfs4ksu.git"
 susfs_branch="gki-android14-6.1"
