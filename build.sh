@@ -3,21 +3,6 @@ official_source="SM-S9210_HKTW_14_Opensource.zip" # change it with you downloade
 build_root=$(pwd)
 kernel_root="$build_root/kernel_source"
 
-cache_root="${CACHE_ROOT:-$build_root/cache}"
-
-# == SukiSU-Ultra + SuSFS ==
-# ksu_add_susfs=true
-# ksu_platform="sukisu-ultra"
-# ksu_install_script="https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
-# ksu_branch="susfs-main"
-# == KernelSU-Next with SuSFS ==
-ksu_add_susfs=true
-ksu_platform="ksu-next"
-ksu_install_script="https://raw.githubusercontent.com/pershoot/KernelSU-Next/next-susfs/kernel/setup.sh"
-ksu_branch="next-susfs"
-
-susfs_repo="https://github.com/ShirkNeko/susfs4ksu.git"
-susfs_branch="gki-android14-6.1"
 container_name="sm8650-kernel-builder"
 
 kernel_build_script="scripts/build_kernel_6.1.sh"
@@ -26,10 +11,12 @@ kernel_source_link="https://opensource.samsung.com/uploadSearch?searchValue=SM-S
 kernel_toolchains_link="https://opensource.samsung.com/uploadSearch?searchValue=S24(Qualcomm)"
 
 custom_config_name="pineapple_gki_defconfig"
-custom_config_file="$kernel_root/arch/arm64/configs/$custom_config_name"
-
+source "$build_root/scripts/utils/config.sh"
+_auto_load_config
 source "$build_root/scripts/utils/lib.sh"
 source "$build_root/scripts/utils/core.sh"
+
+cache_root=$(realpath ${cache_root:-./cache})
 config_hash=$(generate_config_hash "${ksu_branch}" "${susfs_branch}")
 cache_config_dir="$cache_root/config_${config_hash}"
 cache_platform_dir="$cache_root/sm8650"
@@ -101,16 +88,22 @@ function add_susfs() {
 }
 
 function print_usage() {
-    echo "Usage: $0 [container|clean|prepare]"
+    echo "Usage: $0 [container|clean|prepare|config]"
     echo "  container: Build the Docker container for kernel compilation"
     echo "  clean: Clean the kernel source directory"
     echo "  prepare: Prepare the kernel source directory"
+    echo "  config: Show configuration properties and build.config file status"
     echo "  (default): Run the main build process"
     echo ""
     echo "Environment Variables:"
     echo "  CACHE_ROOT: Set custom cache directory for tools and toolchains"
     echo "              Default: $build_root/cache"
     echo "              Current: $cache_root"
+    echo ""
+    echo "Configuration File:"
+    echo "  $CONFIG_FILE: Contains build configuration properties"
+    echo "                Location: $build_root/$CONFIG_FILE"
+    echo "                Use 'config' command to check status and properties"
     echo ""
     echo "Configuration-specific cache directory:"
     echo "  Based on KSU branch: $ksu_branch"
@@ -176,6 +169,18 @@ case "${1:-}" in
 "prepare")
     prepare_source
     echo "[+] Prepared kernel source directory."
+    exit 0
+    ;;
+"env"|"config")
+    echo "[+] Build Configuration Status:"
+    echo ""
+    show_properties_info "$build_root/$CONFIG_FILE"
+    echo ""
+    if [ -f "$build_root/$CONFIG_FILE" ]; then
+        list_properties "$build_root/$CONFIG_FILE"
+    else
+        echo "[*] Please create a config file."
+    fi
     exit 0
     ;;
 "?" | "help" | "--help" | "-h")
