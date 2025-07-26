@@ -295,11 +295,34 @@ extract_kernel_config() {
         if [ -f "boot.img" ]; then
             echo "boot.img already exists, skipping decompression."
         else
-            echo "[-] boot.img not found."
-            echo "[-] boot.img.lz4 not found, please put it in the current directory."
-            echo "     Where to get boot.img?"
-            echo "     - Downlaod the samsung firmware match your phone, extract it, and extract the boot.img.lz4 from the 'AP_...tar.md5'"
-            exit 1
+            if [ -z "$KERNEL_BOOT_IMG_URL" ]; then
+                echo "[-] boot.img not found."
+                echo "[-] boot.img.lz4 not found, please put it in the current directory."
+                echo "     Where to get boot.img?"
+                echo "     - Downlaod the samsung firmware match your phone, extract it, and extract the boot.img.lz4 from the 'AP_...tar.md5'"
+                exit 1
+            fi
+            echo "[+] Downloading boot.img from $KERNEL_BOOT_IMG_URL..."
+            local is_lz4=$(
+                echo "$KERNEL_BOOT_IMG_URL" | grep -q "\.lz4$"
+                echo $?
+            )
+            if [ "$is_lz4" -eq 0 ]; then
+                wget -q "$KERNEL_BOOT_IMG_URL" -O boot.img.lz4
+                if [ $? -ne 0 ]; then
+                    echo "[-] Failed to download boot.img.lz4 from $KERNEL_BOOT_IMG_URL."
+                    exit 1
+                fi
+                echo "[+] boot.img.lz4 downloaded successfully."
+                lz4 -d -f boot.img.lz4 boot.img
+            else
+                wget -q "$KERNEL_BOOT_IMG_URL" -O boot.img
+                if [ $? -ne 0 ]; then
+                    echo "[-] Failed to download boot.img from $KERNEL_BOOT_IMG_URL."
+                    exit 1
+                fi
+                echo "[+] boot.img downloaded successfully."
+            fi
         fi
     fi
     echo "[+] boot.img decompressed successfully."
