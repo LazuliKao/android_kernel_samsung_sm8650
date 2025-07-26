@@ -238,6 +238,10 @@ show_properties_info() {
 }
 
 _auto_load_config() {
+    if [ -z "$CONFIG_FILE" ]; then
+        echo "[*] CONFIG_FILE is not set, using default: $DEFAULT_PROPERTIES_FILE"
+        CONFIG_FILE="$DEFAULT_PROPERTIES_FILE"
+    fi
     if [ -f "$build_root/$CONFIG_FILE" ]; then
         echo "[+] Loading build configuration from $CONFIG_FILE..."
         load_properties_file "$build_root/$CONFIG_FILE"

@@ -28,22 +28,7 @@ function extract_toolchains() {
         echo "[+] Toolchains directory already exists. Skipping extraction."
         return 0
     fi
-    local toolchains_file="toolchain.tar.gz"
-    # extract the toolchains from the official source code
-    echo "[+] toolchains not found. Extracting from $toolchains_file..."
-    if [ ! -f "$toolchains_file" ]; then
-        echo "Please download the official toolchians from Samsung Open Source Release Center."
-        echo "link: $kernel_toolchains_link"
-        exit 1
-    fi
-    mkdir -p "$toolchains_root"
-    tar -xzf "$toolchains_file" -C "$toolchains_root" --strip-components=1
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to extract toolchains from $toolchains_file."
-        rm -rf "$toolchains_root"
-        exit 1
-    fi
-    echo "[+] Toolchains extracted successfully to $toolchains_root."
+    try_extract_toolchains
 }
 
 function __fix_patch() {
@@ -171,7 +156,7 @@ case "${1:-}" in
     echo "[+] Prepared kernel source directory."
     exit 0
     ;;
-"env"|"config")
+"env" | "config")
     echo "[+] Build Configuration Status:"
     echo ""
     show_properties_info "$build_root/$CONFIG_FILE"
