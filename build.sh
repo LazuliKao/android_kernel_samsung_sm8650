@@ -183,7 +183,7 @@ case "${1:-}" in
         fi
     fi
     echo "[+] Building kernel using Docker container..."
-    docker run --rm -it -v "$kernel_root:/workspace" -v "$toolchains_root:/toolchains" $container_name /workspace/build.sh
+    docker run --rm -i -v "$kernel_root:/workspace" -v "$toolchains_root:/toolchains" $container_name /workspace/build.sh
 
     exit 0
     ;;
