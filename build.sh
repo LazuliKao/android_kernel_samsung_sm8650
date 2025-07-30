@@ -124,6 +124,7 @@ function main() {
     fi
     [ "$ksu_platform" = "ksu-next" ] && apply_wild_kernels_fix_for_next
     apply_wild_kernels_config
+    allow_disable_selinux
     fix_driver_check
     fix_samsung_securities
     add_build_script
