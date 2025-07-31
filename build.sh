@@ -125,10 +125,10 @@ function main() {
     [ "$ksu_platform" = "ksu-next" ] && apply_wild_kernels_fix_for_next
     apply_wild_kernels_config
     allow_disable_selinux
+    change_kernel_name
     fix_driver_check
     fix_samsung_securities
     add_build_script
-
     echo "[+] All done. You can now build the kernel."
     echo "[+] Please 'cd $kernel_root'"
     echo "[+] Run the build script with ./build.sh"
