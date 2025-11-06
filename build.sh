@@ -70,6 +70,9 @@ function add_susfs() {
         echo "$patch_result" | grep -q ".rej"
     fi
     __restore_fix_patch # restore removed samsung's changes
+
+    fix_susfs_rej_fs_proc_base_c
+
     echo "[+] SuSFS added successfully."
 }
 

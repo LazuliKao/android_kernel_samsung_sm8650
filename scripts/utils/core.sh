@@ -760,6 +760,36 @@ add_susfs_prepare() {
     fi
 }
 
+fix_susfs_rej_fs_proc_base_c() {
+    # Ensure susfs include exists in fs/proc/base.c (insert after cpufreq_times.h include)
+    target_file="fs/proc/base.c"
+    if [ -f "$target_file.rej" ]; then
+        if ! grep -Fq '#include <linux/susfs_def.h>' "$target_file"; then
+            if grep -Fq '#include <linux/cpufreq_times.h>' "$target_file"; then
+                echo "[+] Inserting susfs include into $target_file..."
+                cp -a "$target_file" "${target_file}.bak"
+                insertion=$'#ifdef CONFIG_KSU_SUSFS_SUS_MAP\n#include <linux/susfs_def.h>\n#endif'
+                awk -v ins="$insertion" '
+                    { print }
+                    /#include <linux\/cpufreq_times.h>/ && !done {
+                        print ins
+                        done=1
+                    }
+                ' "$target_file" >"${target_file}.tmp" && mv "${target_file}.tmp" "$target_file"
+                echo "[+] susfs include inserted."
+            else
+                echo "[-] Reference include '#include <linux/cpufreq_times.h>' not found in $target_file."
+                exit 1
+            fi
+        else
+            echo "[+] '#include <linux/susfs_def.h>' already present in $target_file. Skipping."
+        fi
+    else
+        echo "[-] $target_file not found."
+        exit 1
+    fi
+}
+
 fix_callsyms_for_lkm() {
     echo "[+] Adding CONFIG_KALLSYMS for LKM..."
     _set_or_add_config CONFIG_KPM y
