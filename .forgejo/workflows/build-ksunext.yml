@@ -1,0 +1,48 @@
+name: Build KernelSU-Next
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'build.ksunext.config'
+      - 'build.sh'
+      - 'scripts/**'
+      - 'kernel_patches/**'
+      - '.forgejo/workflows/build-ksunext.yml'
+      - '.forgejo/workflows/build-kernel.yml'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-ksunext:
+    uses: ./.forgejo/workflows/build-kernel.yml
+    with:
+      config_file: build.ksunext.config
+      variant_name: ksunext
+
+  release:
+    name: Create Release
+    runs-on: [home, docker]
+    needs: [build-ksunext]
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: kernel-ksunext-${{ github.sha }}
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/**/*.img
+            artifacts/**/*.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false

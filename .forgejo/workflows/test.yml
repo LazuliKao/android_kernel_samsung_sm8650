@@ -1,0 +1,27 @@
+name: runner-test
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  test-runner:
+    runs-on: [campus, docker]
+    steps:
+      # - name: Install Sudo
+      #   run: |
+      #     sed -i 's@//.*archive.ubuntu.com@//mirrors.zju.edu.cn@g' /etc/apt/sources.list.d/ubuntu.sources
+      #     apt-get update
+      #     apt-get install -y iptables iproute2 ca-certificates curl gnupg lsb-release software-properties-common bridge-utils libseccomp2 uidmap sudo
+      - name: Check runner info
+        run: |
+          docker buildx create --use
+          echo "Runner is working!"
+          echo "Hostname: $(hostname)"
+          echo "Current directory: $(pwd)"
+          echo "User: $(whoami)"
+          docker version
+          docker ps -a
+
+      - name: List files
+        run: ls -al

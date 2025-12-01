@@ -32,34 +32,11 @@ function extract_toolchains() {
     try_extract_toolchains
 }
 
-function __fix_patch() {
-    echo "[+] Fixing patch..."
-    cd "$kernel_root"
-    _apply_patch_strict "fix_patch.patch"
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply fix patch."
-        exit 1
-    fi
-    echo "[+] Fix patch applied successfully."
-}
-
-function __restore_fix_patch() {
-    echo "[+] Restoring fix patch..."
-    cd "$kernel_root"
-    _apply_patch_strict "fix_patch_reverse.patch"
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to restore fix patch."
-        exit 1
-    fi
-    echo "[+] Fix patch restored successfully."
-}
-
 function add_susfs() {
     add_susfs_prepare
     echo "[+] Applying SuSFS patches..."
     cd "$kernel_root"
-    __fix_patch # remove some samsung's changes, then susfs can be applied
-    local patch_result=$(patch -p1 <50_add_susfs_in_$susfs_branch.patch)
+    local patch_result=$(patch -p1 --fuzz=3 <50_add_susfs_in_$susfs_branch.patch)
     if [ $? -ne 0 ]; then
         echo "$patch_result"
         echo "[-] Failed to apply SuSFS patches."
@@ -69,9 +46,6 @@ function add_susfs() {
         echo "[+] SuSFS patches applied successfully."
         echo "$patch_result" | grep -q ".rej"
     fi
-    __restore_fix_patch # restore removed samsung's changes
-
-    fix_susfs_rej_fs_proc_base_c
 
     echo "[+] SuSFS added successfully."
 }

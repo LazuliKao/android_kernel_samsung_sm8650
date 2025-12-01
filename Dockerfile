@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     make repo cpio kmod openssl libelf-dev pahole libssl-dev libarchive-tools zstd --fix-missing \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb \
+    && wget https://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb \
     && dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
 
 # fix git safe directory issue
