@@ -1,0 +1,24 @@
+diff --git a/fs/namespace.c b/fs/namespace.c
+index a0f8267..e616bf2 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -4069,9 +4069,6 @@ static void dec_mnt_namespaces(struct ucounts *ucounts)
+ 	dec_ucount(ucounts, UCOUNT_MNT_NAMESPACES);
+ }
+ 
+-#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+-	copy_flags |= CL_COPY_MNT_NS;
+-#endif
+ static void free_mnt_ns(struct mnt_namespace *ns)
+ {
+ 	if (!is_anon_ns(ns))
+@@ -4154,6 +4151,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+ 	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
+ 	if (user_ns != ns->user_ns)
+ 		copy_flags |= CL_SHARED_TO_SLAVE;
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++	copy_flags |= CL_COPY_MNT_NS;
++#endif
+ #ifdef CONFIG_KDP_NS
+ 	new = copy_tree(old, ((struct kdp_mount *)old)->mnt->mnt_root, copy_flags);
+ #else

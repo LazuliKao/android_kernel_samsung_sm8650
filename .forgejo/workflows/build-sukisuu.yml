@@ -1,48 +1,17 @@
-name: Build SukiSU-Ultra
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+name: Build SukiSU
 
 on:
   push:
-    branches:
-      - main
-      - master
-    paths:
-      - "build.sukisuu.config"
-      - "build.sh"
-      - "scripts/**"
-      - "kernel_patches/**"
-      - ".forgejo/workflows/build-sukisuu.yml"
-      - ".forgejo/workflows/build-kernel.yml"
-  pull_request:
-    branches:
-      - main
-      - master
   workflow_dispatch:
 
 jobs:
-  build-sukisuu:
+  build-ksunext:
     uses: ./.forgejo/workflows/build-kernel.yml
+    runs-on: [campus, docker, ubuntu-latest]
     with:
       config_file: build.sukisuu.config
-      variant_name: sukisuu
-
-  release:
-    name: Create Release
-    runs-on: [home, docker]
-    needs: [build-sukisuu]
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: kernel-sukisuu-${{ github.sha }}
-          path: artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            artifacts/**/*.img
-            artifacts/**/*.zip
-          generate_release_notes: true
-          draft: false
-          prerelease: false
+      variant_name: SukiSU
+      boot_img_url: https://openlist.campus.lk233.link/d/samsung_dev/s24/6.1.99_S9210ZHU4BYD9/boot.img
+      kernel_source_url: https://openlist.campus.lk233.link/d/samsung_dev/s24/6.1.99_S9210ZHU4BYD9/SM-S9210_HKTW_15_Opensource.zip
+      toolchains_url: https://openlist.campus.lk233.link/d/samsung_dev/toolchains/s24_toolchain.tar.gz

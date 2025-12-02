@@ -8,7 +8,7 @@ BUILD_USING_OVERLAY=${build_using_overlay:-true}
 generate_config_hash() {
     local all_config="$ksu_platform|$ksu_install_script|$ksu_branch"
     if [ "$ksu_add_susfs" = true ]; then
-        all_config+="|$susfs_repo|$susfs_branch"
+        all_config+="|$susfs_repo|$susfs_branch|${susfs_commit:-latest}"
     else
         all_config+="|no_susfs"
     fi
@@ -458,15 +458,30 @@ apply_kernelsu_manual_hooks() {
     __prepare_wild_patches
     echo "[+] Applying syscall hooks..."
     cd "$kernel_root"
-    if ! _apply_patch "wild_kernels/next/syscall_hooks.patch"; then
-        echo "[-] Failed to apply syscall hooks patch"
+    if ! _apply_patch "wild_kernels/next/scope_min_manual_hooks_v1.4.patch"; then
+        echo "[-] Failed to apply minimal manual hooks patch"
         exit 1
     fi
+    # if ! _apply_patch "wild_kernels/next/syscall_hooks.patch"; then
+    #     echo "[-] Failed to apply syscall hooks patch"
+    #     exit 1
+    # fi
     echo "[+] Syscall hooks applied successfully."
     cd - >/dev/null
     _set_or_add_config CONFIG_KSU_KPROBES_HOOK n
     _set_or_add_config CONFIG_KSU_WITH_KPROBES n
     _set_or_add_config CONFIG_KSU_MANUAL_HOOK y
+    # _set_or_add_config CONFIG_KSU_MANUAL_SU y
+    _set_or_add_config CONFIG_KSU_MULTI_MANAGER_SUPPORT y
+    _set_or_add_config CONFIG_KPM y
+
+    # #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+    # extern int ksu_handle_stat(int *dfd, struct filename **filename, int *flags);
+    # #else
+    # extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
+    # #endif
+    # patch fs
+
 }
 
 apply_wild_kernels_config() {
@@ -495,10 +510,10 @@ apply_wild_kernels_fix_for_next() {
     cd "$kernel_root"
 
     local patches=(
-        "wild_kernels/next/susfs_fix_patches/v1.5.9/fix_apk_sign.c.patch"
-        "wild_kernels/next/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch"
-        "wild_kernels/next/susfs_fix_patches/v1.5.9/fix_kernel_compat.c.patch"
-        "wild_kernels/next/susfs_fix_patches/v1.5.9/fix_sucompat.c.patch"
+        "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_apk_sign.c.patch"
+        "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_core_hook.c.patch"
+        "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_kernel_compat.c.patch"
+        "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_sucompat.c.patch"
         "wild_kernels/69_hide_stuff.patch"
     )
     # "wild_kernels/gki_ptrace.patch"
@@ -707,15 +722,33 @@ build_container() {
 
 add_susfs_prepare() {
     local susfs_dir="$cache_config_dir/susfs"
+    local susfs_commit_hash="${susfs_commit:-}"
+    
     if [ ! -d "$susfs_dir" ]; then
         echo "[+] Cloning susfs4ksu repository..."
         mkdir -p "$(dirname "$susfs_dir")"
-        git clone "$SUSFS_REPO" --depth 1 -b "$susfs_branch" "$susfs_dir"
+        if [ -n "$susfs_commit_hash" ]; then
+            # Clone without --depth 1 to allow checkout to specific commit
+            git clone "$SUSFS_REPO" -b "$susfs_branch" "$susfs_dir"
+            cd "$susfs_dir"
+            echo "[+] Checking out specific commit: $susfs_commit_hash"
+            git checkout "$susfs_commit_hash"
+            cd "$build_root"
+        else
+            git clone "$SUSFS_REPO" --depth 1 -b "$susfs_branch" "$susfs_dir"
+        fi
     else
         echo "[+] Updating susfs4ksu repository..."
         cd "$susfs_dir"
-        git fetch origin "$susfs_branch"
-        git pull origin "$susfs_branch"
+        if [ -n "$susfs_commit_hash" ]; then
+            # Fetch all history to allow checkout to specific commit
+            git fetch origin "$susfs_branch" --unshallow 2>/dev/null || git fetch origin "$susfs_branch"
+            echo "[+] Checking out specific commit: $susfs_commit_hash"
+            git checkout "$susfs_commit_hash"
+        else
+            git fetch origin "$susfs_branch"
+            git pull origin "$susfs_branch"
+        fi
         cd "$build_root"
     fi
     if [ ! -d "$susfs_dir" ]; then

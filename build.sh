@@ -46,7 +46,12 @@ function add_susfs() {
         echo "[+] SuSFS patches applied successfully."
         echo "$patch_result" | grep -q ".rej"
     fi
-
+    if [ "$ksu_platform" = "ksu-next" ]; then
+        if ! _apply_patch_strict "fix_susfs.patch"; then
+            echo "[-] Failed to apply SuSFS fix patch."
+            exit 1
+        fi
+    fi
     echo "[+] SuSFS added successfully."
 }
 
@@ -95,7 +100,7 @@ function main() {
     show_config_summary
 
     add_kernelsu
-    apply_kernelsu_manual_hooks
+    [ "$ksu_platform" = "ksu-next" ] && apply_kernelsu_manual_hooks
     if [ "$ksu_add_susfs" = true ]; then
         add_susfs
         fix_kernel_su_next_susfs
