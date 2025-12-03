@@ -243,3 +243,105 @@ SUSFS Branch: $susfs_branch
 EOF
     echo "[+] Build info saved to ./dist/build_info.txt"
 }
+
+# Generate release version string and body for GitHub release
+generate_release_info() {
+    if [ -z "$KERNEL_ROOT" ]; then
+        echo "[-] KERNEL_ROOT is not set. Please set it to the root of your kernel source."
+        exit 1
+    fi
+    if [ ! -d "./dist" ]; then
+        mkdir -p ./dist
+    fi
+
+    # Get version information
+    local kernel_version=$(__get_kernel_version)
+    local ksu_version=$(__get_ksu_version)
+    local susfs_version=$(__get_susfs_version)
+    local ksu_platform=$(__get_config_value "ksu_platform")
+    local ksu_branch=$(__get_config_value "ksu_branch")
+    local ksu_add_susfs=$(__get_config_value "ksu_add_susfs")
+    local susfs_repo=$(__get_config_value "susfs_repo")
+    local susfs_branch=$(__get_config_value "susfs_branch")
+    local build_date=$(date '+%Y-%m-%d %H:%M:%S')
+
+    # Determine KSU type display name
+    local ksu_type_name=""
+    case "$ksu_platform" in
+        "ksu-next")
+            ksu_type_name="KSU-Next"
+            ;;
+        "sukisu-ultra")
+            ksu_type_name="SukiSU-Ultra"
+            ;;
+        *)
+            ksu_type_name="$ksu_platform"
+            ;;
+    esac
+
+    # Build release tag: kernel_version-ksu_type-ksu_version[-susfs_version]
+    local release_tag="${kernel_version}-${ksu_type_name}-${ksu_version}"
+    if [ "$ksu_add_susfs" = "true" ] && [ "$susfs_version" != "Not found" ]; then
+        release_tag="${release_tag}-SUSFS-${susfs_version}"
+    fi
+
+    # Save release tag to file
+    echo "$release_tag" > "./dist/release_tag.txt"
+    echo "[+] Release tag: $release_tag"
+
+    # Build release name
+    local release_name="SM8650 Kernel ${release_tag}"
+    echo "$release_name" > "./dist/release_name.txt"
+    echo "[+] Release name: $release_name"
+
+    # Build release body with detailed information
+    cat > "./dist/release_body.md" <<EOF
+## Kernel Build Information
+
+| Component | Version |
+|-----------|----------|
+| **Kernel Version** | ${kernel_version} |
+| **KernelSU Type** | ${ksu_type_name} |
+| **KernelSU Version** | ${ksu_version} |
+| **KernelSU Branch** | ${ksu_branch} |
+EOF
+
+    if [ "$ksu_add_susfs" = "true" ]; then
+        cat >> "./dist/release_body.md" <<EOF
+| **SUSFS Version** | ${susfs_version} |
+| **SUSFS Branch** | ${susfs_branch} |
+EOF
+    fi
+
+    cat >> "./dist/release_body.md" <<EOF
+
+## Build Details
+
+- **Build Date**: ${build_date}
+- **Architecture**: arm64
+- **Local Version**: ${LOCALVERSION:-N/A}
+
+## Files Included
+
+- \`AnyKernel.zip\` - Flashable zip for custom recovery
+- \`boot.img\` - Flashable boot image (if available)
+- \`kernel\` - Raw kernel image
+- \`build_info.txt\` - Detailed build information
+
+## Installation
+
+### Using AnyKernel (Recommended)
+1. Boot into custom recovery (TWRP/OrangeFox)
+2. Flash \`AnyKernel.zip\`
+3. Reboot
+
+### Using boot.img
+1. Use Odin or fastboot to flash \`boot.img\` to boot partition
+2. Reboot
+
+---
+*Automated build from commit \`\${GITHUB_SHA:-N/A}\`*
+EOF
+
+    echo "[+] Release body saved to ./dist/release_body.md"
+}

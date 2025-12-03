@@ -69,6 +69,10 @@ function repack() {
     cd "$build_dir"
 
     generate_info "$KERNEL_ROOT"
+    
+    # Generate release information for GitHub release
+    echo "[+] Generating release information..."
+    generate_release_info
 
     # AnyKernel
     echo "[+] Creating AnyKernel package..."

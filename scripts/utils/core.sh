@@ -508,17 +508,29 @@ apply_wild_kernels_fix_for_next() {
     __prepare_wild_patches
     echo "[+] Applying Wild Kernels fix..."
     cd "$kernel_root"
-
     local patches=(
+        "wild_kernels/69_hide_stuff.patch"
+    )
+    for patch in "${patches[@]}"; do
+        if ! _apply_patch "$patch"; then
+            echo "[-] Failed to apply wild kernels patch: $patch"
+            exit 1
+        fi
+    done
+    echo "[+] Wild Kernels fix applied successfully."
+    cd - >/dev/null
+
+    cd "$kernel_root/KernelSU-Next"
+
+    local patches_ksu=(
         "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_apk_sign.c.patch"
         "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_core_hook.c.patch"
         "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_kernel_compat.c.patch"
         "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_sucompat.c.patch"
-        "wild_kernels/69_hide_stuff.patch"
     )
     # "wild_kernels/gki_ptrace.patch"
 
-    for patch in "${patches[@]}"; do
+    for patch in "${patches_ksu[@]}"; do
         if ! _apply_patch "$patch"; then
             echo "[-] Failed to apply wild kernels patch: $patch"
             exit 1
@@ -723,7 +735,7 @@ build_container() {
 add_susfs_prepare() {
     local susfs_dir="$cache_config_dir/susfs"
     local susfs_commit_hash="${susfs_commit:-}"
-    
+
     if [ ! -d "$susfs_dir" ]; then
         echo "[+] Cloning susfs4ksu repository..."
         mkdir -p "$(dirname "$susfs_dir")"

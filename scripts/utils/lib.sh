@@ -76,31 +76,66 @@ _set_or_add_config() {
     fi
 }
 
-# Apply a patch file
-_apply_patch() {
+# Resolve patch file path
+# Priority: absolute path -> cache_config_dir/kernel_patches -> build_root/kernel_patches -> kernel_root -> build_root (fallback)
+_resolve_patch_path() {
     local patch_path="$1"
-    local patch_file=""
 
     if [ -z "$build_root" ]; then
-        echo "[-] Error: build_root is not set"
+        echo "[-] Error: build_root is not set" >&2
         return 1
     fi
-    # Determine patch file location: absolute, cache, or build_root
+
+    local patch_file=""
+
+    # 1. Absolute path
     if [[ "$patch_path" == /* ]]; then
         patch_file="$patch_path"
+    # 2. Cache config directory
     elif [ -f "$cache_config_dir/kernel_patches/$patch_path" ]; then
         patch_file="$cache_config_dir/kernel_patches/$patch_path"
-    else
+    # 3. Build root kernel_patches directory
+    elif [ -f "$build_root/kernel_patches/$patch_path" ]; then
         patch_file="$build_root/kernel_patches/$patch_path"
+    # 4. Kernel root directory
+    elif [ -n "$kernel_root" ] && [ -f "$kernel_root/$patch_path" ]; then
+        patch_file="$kernel_root/$patch_path"
+    # 5. Fallback to build_root directly
+    elif [ -f "$build_root/$patch_path" ]; then
+        patch_file="$build_root/$patch_path"
     fi
 
-    if [ ! -f "$patch_file" ]; then
-        echo "[-] Error: Patch file does not exist: $patch_file"
+    if [ -z "$patch_file" ] || [ ! -f "$patch_file" ]; then
+        echo "[-] Error: Patch file does not exist: $patch_path" >&2
+        echo "[-] Searched locations:" >&2
+        echo "[-]   - $patch_path (absolute)" >&2
+        echo "[-]   - $cache_config_dir/kernel_patches/$patch_path" >&2
+        echo "[-]   - $build_root/kernel_patches/$patch_path" >&2
+        echo "[-]   - $kernel_root/$patch_path" >&2
+        echo "[-]   - $build_root/$patch_path" >&2
         return 1
     fi
 
-    echo "[+] Applying patch: $patch_path"
-    local patch_result=$(patch -p1 -l --forward --fuzz=3 <"$patch_file" 2>&1)
+    echo "$patch_file"
+    return 0
+}
+
+# Apply a patch file
+# Usage: _apply_patch <patch_path> [fuzz_level]
+# fuzz_level: default 3
+_apply_patch() {
+    local patch_path="$1"
+    local fuzz="${2:-3}"
+
+    local patch_file
+    patch_file=$(_resolve_patch_path "$patch_path")
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+
+    echo "[+] Applying patch: $patch_path (fuzz=$fuzz)"
+    local patch_result
+    patch_result=$(patch -p1 -l --forward --fuzz="$fuzz" <"$patch_file" 2>&1)
     if [ $? -ne 0 ]; then
         echo "[-] Failed to apply patch: $patch_path"
         echo "$patch_result"
@@ -116,46 +151,10 @@ _apply_patch() {
     return 0
 }
 
+# Apply a patch file strictly (fuzz=0)
 _apply_patch_strict() {
     local patch_path="$1"
-    local patch_file=""
-
-    if [ -z "$build_root" ]; then
-        echo "[-] Error: build_root is not set"
-        return 1
-    fi
-
-    # Check if the path is absolute or relative
-    if [[ "$patch_path" == /* ]]; then
-        # Absolute path
-        patch_file="$patch_path"
-    elif [[ "$patch_path" == wild_kernels/* ]]; then
-        # Wild kernels patch - use cache directory
-        patch_file="$cache_config_dir/kernel_patches/$patch_path"
-    else
-        # Traditional relative path - use build_root
-        patch_file="$build_root/kernel_patches/$patch_path"
-    fi
-
-    if [ ! -f "$patch_file" ]; then
-        echo "[-] Error: Patch file does not exist: $patch_file"
-        return 1
-    fi
-
-    echo "[+] Applying patch: $patch_path"
-    local patch_result=$(patch -p1 -l <"$patch_file" 2>&1)
-    if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply patch: $patch_path"
-        echo "$patch_result"
-        echo "[-] Please check the patch file and try again."
-        return 1
-    fi
-    if echo "$patch_result" | grep -q ".rej"; then
-        echo "[-] Patch applied with rejected hunks. Please check the .rej files."
-        echo "$patch_result" | grep ".rej"
-        return 1
-    fi
-    return 0
+    _apply_patch "$patch_path" 0
 }
 
 # Get kernel version from Makefile

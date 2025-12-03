@@ -1,48 +1,48 @@
-name: Build KernelSU-Next (Test)
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+name: Build KernelSU-Next
 
 on:
-  workflow_call:
-      inputs:
-        config_file:
-          description: 'Build config file to use'
-          required: true
-          type: string
-        variant_name:
-          description: 'Variant name for artifacts'
-          required: true
-          type: string
-        boot_img_url:
-          description: 'Kernel boot image URL'
-          required: false
-          type: string
-        kernel_source_url:
-          description: 'Kernel source URL'
-          required: false
-          type: string
-        toolchains_url:
-          description: 'Toolchains URL'
-          required: false
-          type: string
+  workflow_dispatch:
+  push:
+
 jobs:
   build:
-    name: Build ksunext
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.variant.name }} Kernel (with${{ matrix.ksu_add_susfs == 'true' && ' ' || 'out '}}SuSFS)
+    runs-on: [ubuntu-latest, campus]
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        toolchains_url:
+          - https://openlist.campus.lk233.link/d/samsung_dev/toolchains/s24_toolchain.tar.gz
+        src_urls:
+          - boot_img_url: https://openlist.campus.lk233.link/d/samsung_dev/s24/6.1.99_S9210ZHU4BYD9/boot.img
+            kernel_source_url: https://openlist.campus.lk233.link/d/samsung_dev/s24/6.1.99_S9210ZHU4BYD9/SM-S9210_HKTW_15_Opensource.zip
+        variant:
+          - config_file: build.ksunext.config
+            name: KernelSU-Next
+          - config_file: build.sukisuu.config
+            name: SukiSU Ultra
+        ksu_add_susfs: [true, false]
     env:
-      CONFIG_FILE: ${{ inputs.config_file }}
-      KERNEL_BOOT_IMG_URL: ${{ inputs.boot_img_url }}
-      KERNEL_SOURCE_URL: ${{ inputs.kernel_source_url }}
-      TOOLCHAINS_URL: ${{ inputs.toolchains_url }}
+      CONFIG_FILE: ${{ matrix.variant.config_file }}
+      KERNEL_BOOT_IMG_URL: ${{ matrix.src_urls.boot_img_url }}
+      KERNEL_SOURCE_URL: ${{ matrix.src_urls.kernel_source_url }}
+      TOOLCHAINS_URL: ${{ matrix.toolchains_url }}
       cache_root: ${{ github.workspace }}/.cache
+      ksu_add_susfs: ${{ matrix.ksu_add_susfs }}
     steps:
-      - name: Print Config
+      - name: Print Environment
         run: |
-          echo "CONFIG_FILE=$CONFIG_FILE"
-          echo "KERNEL_BOOT_IMG_URL=$KERNEL_BOOT_IMG_URL"
-          echo "KERNEL_SOURCE_URL=$KERNEL_SOURCE_URL"
-          echo "TOOLCHAINS_URL=$TOOLCHAINS_URL"
-          echo "cache_root=$cache_root"
+          echo "export CONFIG_FILE=$CONFIG_FILE"
+          echo "export KERNEL_BOOT_IMG_URL=$KERNEL_BOOT_IMG_URL"
+          echo "export KERNEL_SOURCE_URL=$KERNEL_SOURCE_URL"
+          echo "export TOOLCHAINS_URL=$TOOLCHAINS_URL"
+          echo "export cache_root=$cache_root"
+
       - name: Checkout repository
         uses: actions/checkout@v6
+
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
@@ -50,7 +50,7 @@ jobs:
           key: ${{ runner.os }}-ksunext-${{ hashFiles('build.ksunext.config') }}
           restore-keys: |
             ${{ runner.os }}-ksunext-
-      - name: Install Docker
+      - name: Install Docker Dependencies
         run: |
           sed -i 's@//.*archive.ubuntu.com@//mirrors.nju.edu.cn@g' /etc/apt/sources.list.d/ubuntu.sources
           apt-get update
@@ -58,8 +58,10 @@ jobs:
           fuse-overlayfs -V
 
       - name: Set up Docker
-        uses: https://github.com/docker/setup-docker-action@v4
+        uses: https://github.com/LazuliKao/setup-docker-action@v4.6.0
         with:
+          docker-mirror: https://mirrors.zju.edu.cn/docker-ce
+          version: "29.1.1"
           set-host: true
           daemon-config: | #json
             {
@@ -82,8 +84,27 @@ jobs:
         run: |
           ./build.sh kernel
 
+      - name: Read release information
+        id: release_info
+        run: |
+          RELEASE_TAG=$(cat kernel_edit/build/dist/release_tag.txt 2>/dev/null || echo "unknown")
+          RELEASE_NAME=$(cat kernel_edit/build/dist/release_name.txt 2>/dev/null || echo "SM8650 Kernel")
+          RELEASE_BODY=$(cat kernel_edit/build/dist/release_body.md 2>/dev/null || echo "Automated kernel build")
+
+          # Handle multiline body for GitHub Actions
+          echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+          echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
+
+          # Use delimiter for multiline content
+          echo "release_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "Release tag: $RELEASE_TAG"
+          echo "Release name: $RELEASE_NAME"
+
       - name: Upload kernel artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v3
         with:
           name: kernel-ksunext-${{ github.sha }}
           path: |
@@ -91,7 +112,71 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - uses: actions/checkout@v2
+      - name: Release
+        uses: https://github.com/LazuliKao/action-gh-release@v2.5.0
+        with:
+          draft: true
+          name: ${{ steps.release_info.outputs.release_name }}-${{ matrix.variant.name }}
+          repository: LazuliKao/android_kernel_samsung_sm8650
+          body: | # markdown
+            ${{ steps.release_info.outputs.release_body }}
+
+            ---
+            **Variant**: ${{ matrix.variant.name }}
+            **Commit**: ${{ github.sha }}
+            **Branch**: ${{ github.ref_name }}
+          files: kernel_edit/build/dist/*
+          tag_name: v${{ steps.release_info.outputs.release_tag }}-${{ matrix.variant.name }}
+          token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          github_api_url: https://api.github.com
+
+      - name: Collect patch failure files
+        if: failure()
+        run: |
+          mkdir -p patch_failures
+          # Find all .rej files and copy them with directory structure
+          find kernel_edit -name "*.rej" -type f | while read rej_file; do
+            # Create target directory
+            target_dir="patch_failures/$(dirname "$rej_file")"
+            mkdir -p "$target_dir"
+            cp "$rej_file" "$target_dir/"
+            
+            # Copy corresponding original file (without .rej extension)
+            orig_file="${rej_file%.rej}"
+            if [ -f "$orig_file" ]; then
+              cp "$orig_file" "$target_dir/"
+            fi
+            
+            # Copy .orig file if exists
+            orig_backup="${orig_file}.orig"
+            if [ -f "$orig_backup" ]; then
+              cp "$orig_backup" "$target_dir/"
+            fi
+          done
+          
+          # List collected files
+          echo "Collected patch failure files:"
+          find patch_failures -type f | head -100
+          
+          # Initialize git in patch_failures for generating patches
+          cd patch_failures/kernel_edit
+          git init
+          git config user.email "ci@build.local"
+          git config user.name "CI Build"
+          git add -A
+          git commit -m "Initial patch failure files state"
+          echo "Git repository initialized in patch_failures"
+
+      - name: Upload patch failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: patch-failures-${{ matrix.variant.name }}-${{ github.sha }}
+          path: patch_failures/kernel_edit
+          if-no-files-found: ignore
+          retention-days: 7
+          include-hidden-files: true
+
       - name: Debug with Upterm
         if: failure()
         uses: https://github.com/owenthereal/action-upterm@v1

@@ -36,21 +36,15 @@ function add_susfs() {
     add_susfs_prepare
     echo "[+] Applying SuSFS patches..."
     cd "$kernel_root"
-    local patch_result=$(patch -p1 --fuzz=3 <50_add_susfs_in_$susfs_branch.patch)
+    _apply_patch 50_add_susfs_in_"$susfs_branch".patch 2
     if [ $? -ne 0 ]; then
-        echo "$patch_result"
         echo "[-] Failed to apply SuSFS patches."
-        echo "$patch_result" | grep -q ".rej"
         exit 1
-    else
-        echo "[+] SuSFS patches applied successfully."
-        echo "$patch_result" | grep -q ".rej"
     fi
-    if [ "$ksu_platform" = "ksu-next" ]; then
-        if ! _apply_patch_strict "fix_susfs.patch"; then
-            echo "[-] Failed to apply SuSFS fix patch."
-            exit 1
-        fi
+    echo "[+] SuSFS patches applied successfully."
+    if ! _apply_patch_strict "fix_susfs.patch"; then
+        echo "[-] Failed to apply SuSFS fix patch."
+        exit 1
     fi
     echo "[+] SuSFS added successfully."
 }
