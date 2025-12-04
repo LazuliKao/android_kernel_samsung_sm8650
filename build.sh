@@ -40,11 +40,10 @@ function add_susfs() {
     if [ $? -ne 0 ]; then
         echo "[-] apply SuSFS patches has some issues."
     fi
-    echo "[+] SuSFS patches applied successfully."
     local susfs_commit_short="${susfs_commit:0:7}"
     susfs_commit_short=${susfs_commit_short:-latest}
     if ! _apply_patch_strict "fix_susfs_${susfs_commit_short}.patch"; then
-        echo "[-] Failed to apply SuSFS fix patch."
+        echo "[-] Failed to apply SuSFS fix patch. $susfs_commit_short"
         exit 1
     fi
     echo "[+] SuSFS added successfully."

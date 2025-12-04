@@ -1,0 +1,66 @@
+diff --git a/fs/namespace.c b/fs/namespace.c
+old mode 100755
+new mode 100644
+index b3e0c42..9769fb0
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -32,6 +32,9 @@
+ #include <linux/fs_context.h>
+ #include <linux/shmem_fs.h>
+ #include <linux/mnt_idmapping.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++#include <linux/susfs_def.h>
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+ #include <linux/fslog.h>
+ #ifdef CONFIG_KDP_NS
+ #include <linux/kdp.h>
+@@ -40,6 +43,17 @@
+ #include "pnode.h"
+ #include "internal.h"
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++extern bool susfs_is_current_ksu_domain(void);
++extern bool susfs_is_boot_completed_triggered;
++
++static DEFINE_IDA(susfs_ksu_mnt_group_ida);
++static atomic64_t susfs_ksu_mounts = ATOMIC64_INIT(0);
++
++#define CL_COPY_MNT_NS BIT(25) /* used by copy_mnt_ns() */
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++
++
+ /* Maximum number of mounts in a mount namespace */
+ static unsigned int sysctl_mount_max __read_mostly = 100000;
+ 
+@@ -4109,6 +4123,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+ 	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
+ 	if (user_ns != ns->user_ns)
+ 		copy_flags |= CL_SHARED_TO_SLAVE;
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++	copy_flags |= CL_COPY_MNT_NS;
++#endif
+ #ifdef CONFIG_KDP_NS
+ 	new = copy_tree(old, ((struct kdp_mount *)old)->mnt->mnt_root, copy_flags);
+ #else
+diff --git a/fs/namespace.c.orig b/fs/namespace.c.orig
+old mode 100755
+new mode 100644
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+old mode 100755
+new mode 100644
+index 9c90230..ff773aa
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -97,6 +97,9 @@
+ #include <linux/resctrl.h>
+ #include <linux/cn_proc.h>
+ #include <linux/cpufreq_times.h>
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++#include <linux/susfs_def.h>
++#endif
+ #include <linux/task_integrity.h>
+ #include <linux/proca.h>
+ #include <trace/events/oom.h>
+diff --git a/fs/proc/base.c.orig b/fs/proc/base.c.orig
+old mode 100755
+new mode 100644
