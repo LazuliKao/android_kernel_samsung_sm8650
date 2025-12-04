@@ -23,7 +23,7 @@ jobs:
             name: KernelSU-Next
           - config_file: build.sukisuu.config
             name: SukiSU Ultra
-        ksu_add_susfs: [true, false]
+        ksu_add_susfs: [true]
     env:
       CONFIG_FILE: ${{ matrix.variant.config_file }}
       KERNEL_BOOT_IMG_URL: ${{ matrix.src_urls.boot_img_url }}
@@ -177,9 +177,14 @@ jobs:
           retention-days: 7
           include-hidden-files: true
 
-      - name: Debug with Upterm
+      - name: Setup tmate session
         if: failure()
-        uses: https://github.com/owenthereal/action-upterm@v1
+        uses: https://github.com/mxschmitt/action-tmate@v3
+        timeout-minutes: 30
         with:
-          upterm-server: wss://upterm.home.lk233.link:8443
-          wait-timeout-minutes: 30
+          tmate-server-host: 100.99.233.2
+          tmate-server-port: 2222
+          tmate-server-rsa-fingerprint: SHA256:lOJOu2w1fKEnI6TDF+cuWlim8G7l3vWmUqte+DLrRF0
+          tmate-server-ed25519-fingerprint: SHA256:N/sbGFFKDTPJ7TFyzlTG8JuZM5paA1usxJzOKOU934E
+          limit-access-to-actor: true
+          github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
