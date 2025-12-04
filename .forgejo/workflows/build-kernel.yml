@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build ${{ matrix.variant.name }} Kernel${{ matrix.ksu_add_susfs && ' (with  SuSFS)' || '' }}
+    name: Build ${{ matrix.variant.name }} Kernel${{ matrix.variant.ksu_add_susfs && ' (with  SuSFS)' || '' }}
     runs-on: [ubuntu-latest, campus]
     strategy:
       fail-fast: false
@@ -23,16 +23,28 @@ jobs:
         variant:
           - config_file: build.ksunext.config
             name: KernelSU-Next
+            ksu_add_susfs: true
+            branch: next-susfs
+          - config_file: build.ksunext.config
+            name: KernelSU-Next
+            ksu_add_susfs: false
+            branch: next
           - config_file: build.sukisuu.config
             name: SukiSU Ultra
-        ksu_add_susfs: [true, false]
+            ksu_add_susfs: true
+            branch: susfs-main
+          - config_file: build.sukisuu.config
+            name: SukiSU Ultra
+            ksu_add_susfs: false
+            branch: main
     env:
       CONFIG_FILE: ${{ matrix.variant.config_file }}
       KERNEL_BOOT_IMG_URL: ${{ matrix.src_urls.boot_img_url }}
       KERNEL_SOURCE_URL: ${{ matrix.src_urls.kernel_source_url }}
       TOOLCHAINS_URL: ${{ matrix.toolchains_url }}
       cache_root: ${{ github.workspace }}/.cache
-      ksu_add_susfs: ${{ matrix.ksu_add_susfs }}
+      ksu_add_susfs: ${{ matrix.variant.ksu_add_susfs }}
+      ksu_branch: ${{ matrix.variant.branch }}
     steps:
       - name: Print Environment
         run: |

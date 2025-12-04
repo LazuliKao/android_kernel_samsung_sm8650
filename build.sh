@@ -100,6 +100,7 @@ function main() {
         fix_kernel_su_next_susfs
     fi
     [ "$ksu_platform" = "ksu-next" ] && apply_wild_kernels_fix_for_next
+    [ "$ksu_platform" = "sukisu-ultra" ] && apply_suki_patches
     apply_wild_kernels_config
     allow_disable_selinux
     change_kernel_name
@@ -161,14 +162,14 @@ case "${1:-}" in
         fi
     fi
     echo "[+] Building kernel using Docker container..."
-    
+
     # Build docker run command with optional GITHUB_OUTPUT mapping
     docker_args="--rm -i -v $kernel_root:/workspace -v $toolchains_root:/toolchains"
     if [ -n "$GITHUB_OUTPUT" ]; then
         echo "[+] Mapping GITHUB_OUTPUT into container..."
         docker_args="$docker_args -v $GITHUB_OUTPUT:/github_output -e GITHUB_OUTPUT=/github_output"
     fi
-    
+
     docker run $docker_args $container_name /workspace/build.sh
     if [ $? -ne 0 ]; then
         echo "[-] Kernel build failed."
