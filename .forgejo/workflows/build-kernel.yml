@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build ${{ matrix.variant.name }} Kernel (with${{ matrix.ksu_add_susfs == 'true' && ' ' || 'out '}}SuSFS)
+    name: Build ${{ matrix.variant.name }} Kernel${{ matrix.ksu_add_susfs && ' (with  SuSFS)' || '' }}
     runs-on: [ubuntu-latest, campus]
     strategy:
       fail-fast: false
@@ -25,7 +25,7 @@ jobs:
             name: KernelSU-Next
           - config_file: build.sukisuu.config
             name: SukiSU Ultra
-        ksu_add_susfs: [true]
+        ksu_add_susfs: [true, false]
     env:
       CONFIG_FILE: ${{ matrix.variant.config_file }}
       KERNEL_BOOT_IMG_URL: ${{ matrix.src_urls.boot_img_url }}
@@ -49,9 +49,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.cache_root }}
-          key: ${{ runner.os }}-ksunext-${{ hashFiles('build.ksunext.config') }}
+          key: |
+            build-kernel-${{ hashFiles(matrix.variant.config_file) }}
           restore-keys: |
-            ${{ runner.os }}-ksunext-
+            build-kernel-
       - name: Install Docker Dependencies
         run: |
           sed -i 's@//.*archive.ubuntu.com@//mirrors.nju.edu.cn@g' /etc/apt/sources.list.d/ubuntu.sources
@@ -86,24 +87,12 @@ jobs:
         run: |
           ./build.sh kernel
 
-      - name: Read release information
-        id: release_info
-        run: |
-          RELEASE_TAG=$(cat kernel_edit/build/dist/release_tag.txt 2>/dev/null || echo "unknown")
-          RELEASE_NAME=$(cat kernel_edit/build/dist/release_name.txt 2>/dev/null || echo "SM8650 Kernel")
-          RELEASE_BODY=$(cat kernel_edit/build/dist/release_body.md 2>/dev/null || echo "Automated kernel build")
-
-          # Handle multiline body for GitHub Actions
-          echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
-          echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
-
-          # Use delimiter for multiline content
-          echo "release_body<<EOF" >> $GITHUB_OUTPUT
-          echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-          echo "Release tag: $RELEASE_TAG"
-          echo "Release name: $RELEASE_NAME"
+          # Print release info for logging
+          INFO_JSON="kernel_edit/build/dist/release_info.json"
+          if [ -f "$INFO_JSON" ]; then
+            echo "Release info:"
+            cat $INFO_JSON | jq .
+          fi
 
       - name: Upload kernel artifacts
         uses: actions/upload-artifact@v3
@@ -117,18 +106,51 @@ jobs:
       - name: Release
         uses: https://github.com/LazuliKao/action-gh-release@v2.5.0
         with:
-          draft: true
-          name: ${{ steps.release_info.outputs.release_name }}-${{ matrix.variant.name }}
+          name: ${{ steps.build.outputs.release_name }}-${{ matrix.variant.name }}
+          tag_name: v${{ steps.build.outputs.release_tag }}-${{ matrix.variant.name }}
+          prerelease: true
           repository: LazuliKao/android_kernel_samsung_sm8650
-          body: | # markdown
-            ${{ steps.release_info.outputs.release_body }}
+          body: |
+            ## Kernel Build Information
 
-            ---
-            **Variant**: ${{ matrix.variant.name }}
-            **Commit**: ${{ github.sha }}
-            **Branch**: ${{ github.ref_name }}
+            | Component | Version |
+            |-----------|----------|
+            | **Kernel Version** | ${{ steps.build.outputs.kernel_version }} |
+            | **KernelSU Type** | ${{ steps.build.outputs.ksu_type_name }} |
+            | **KernelSU Version** | ${{ steps.build.outputs.ksu_version }} |
+            | **KernelSU Branch** | ${{ steps.build.outputs.ksu_branch }} |
+            ${{ steps.build.outputs.susfs_enabled == 'true' && format('| **SUSFS Version** | {0} |', steps.build.outputs.susfs_version) || '' }}
+            ${{ steps.build.outputs.susfs_enabled == 'true' && format('| **SUSFS Branch** | {0} |', steps.build.outputs.susfs_branch) || '' }}
+
+            ## Build Details
+
+            - **Build Date**: ${{ steps.build.outputs.build_date }}
+            - **Architecture**: arm64
+            - **Local Version**: ${{ steps.build.outputs.local_version || 'N/A' }}
+            - **Variant**: ${{ matrix.variant.name }}
+            - **Commit**: ${{ github.sha }}
+            - **Branch**: ${{ github.ref_name }}
+
+            ## Files Included
+
+            - `AnyKernel.zip` - Flashable zip for custom recovery
+            - `boot.img` - Flashable boot image (if available)
+            - `kernel` - Raw kernel image
+
+            ## Installation
+
+            ### Using AnyKernel (Recommended)
+            1. Boot into custom recovery (TWRP/OrangeFox)
+            2. Flash `AnyKernel.zip`
+            3. Reboot
+
+            ### Using boot.img
+            1. Use Odin or fastboot to flash `boot.img` to boot partition
+            2. Reboot
+
           files: kernel_edit/build/dist/*
-          tag_name: v${{ steps.release_info.outputs.release_tag }}-${{ matrix.variant.name }}
+          fail_on_unmatched_files: true
+
           token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
           github_api_url: https://api.github.com
 
@@ -155,11 +177,11 @@ jobs:
               cp "$orig_backup" "$target_dir/"
             fi
           done
-          
+
           # List collected files
           echo "Collected patch failure files:"
           find patch_failures -type f | head -100
-          
+
           # Initialize git in patch_failures for generating patches
           cd patch_failures/kernel_edit
           git init

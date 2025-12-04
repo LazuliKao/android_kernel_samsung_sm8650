@@ -245,6 +245,7 @@ EOF
 }
 
 # Generate release version string and body for GitHub release
+# Outputs a single JSON file with all build metadata for easy consumption in CI/CD
 generate_release_info() {
     if [ -z "$KERNEL_ROOT" ]; then
         echo "[-] KERNEL_ROOT is not set. Please set it to the root of your kernel source."
@@ -264,6 +265,7 @@ generate_release_info() {
     local susfs_repo=$(__get_config_value "susfs_repo")
     local susfs_branch=$(__get_config_value "susfs_branch")
     local build_date=$(date '+%Y-%m-%d %H:%M:%S')
+    local build_timestamp=$(date '+%s')
 
     # Determine KSU type display name
     local ksu_type_name=""
@@ -281,67 +283,63 @@ generate_release_info() {
 
     # Build release tag: kernel_version-ksu_type-ksu_version[-susfs_version]
     local release_tag="${kernel_version}-${ksu_type_name}-${ksu_version}"
+    local has_susfs="false"
     if [ "$ksu_add_susfs" = "true" ] && [ "$susfs_version" != "Not found" ]; then
         release_tag="${release_tag}-SUSFS-${susfs_version}"
+        has_susfs="true"
     fi
-
-    # Save release tag to file
-    echo "$release_tag" > "./dist/release_tag.txt"
-    echo "[+] Release tag: $release_tag"
 
     # Build release name
     local release_name="SM8650 Kernel ${release_tag}"
-    echo "$release_name" > "./dist/release_name.txt"
+
+    # Generate structured JSON with all build metadata
+    cat > "./dist/release_info.json" <<EOF
+{
+  "release": {
+    "tag": "${release_tag}",
+    "name": "${release_name}"
+  },
+  "kernel": {
+    "version": "${kernel_version}",
+    "local_version": "${LOCALVERSION:-}",
+    "architecture": "arm64"
+  },
+  "ksu": {
+    "platform": "${ksu_platform}",
+    "type_name": "${ksu_type_name}",
+    "version": "${ksu_version}",
+    "branch": "${ksu_branch}"
+  },
+  "susfs": {
+    "enabled": ${has_susfs},
+    "version": "${susfs_version}",
+    "repo": "${susfs_repo}",
+    "branch": "${susfs_branch}"
+  },
+  "build": {
+    "date": "${build_date}",
+    "timestamp": ${build_timestamp}
+  }
+}
+EOF
+
+    echo "[+] Release info JSON saved to ./dist/release_info.json"
+    echo "[+] Release tag: $release_tag"
     echo "[+] Release name: $release_name"
 
-    # Build release body with detailed information
-    cat > "./dist/release_body.md" <<EOF
-## Kernel Build Information
-
-| Component | Version |
-|-----------|----------|
-| **Kernel Version** | ${kernel_version} |
-| **KernelSU Type** | ${ksu_type_name} |
-| **KernelSU Version** | ${ksu_version} |
-| **KernelSU Branch** | ${ksu_branch} |
-EOF
-
-    if [ "$ksu_add_susfs" = "true" ]; then
-        cat >> "./dist/release_body.md" <<EOF
-| **SUSFS Version** | ${susfs_version} |
-| **SUSFS Branch** | ${susfs_branch} |
-EOF
+    # Also output GitHub Actions compatible environment variables
+    if [ -n "$GITHUB_OUTPUT" ]; then
+        echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
+        echo "release_name=${release_name}" >> "$GITHUB_OUTPUT"
+        echo "kernel_version=${kernel_version}" >> "$GITHUB_OUTPUT"
+        echo "ksu_version=${ksu_version}" >> "$GITHUB_OUTPUT"
+        echo "ksu_type_name=${ksu_type_name}" >> "$GITHUB_OUTPUT"
+        echo "ksu_branch=${ksu_branch}" >> "$GITHUB_OUTPUT"
+        echo "susfs_enabled=${has_susfs}" >> "$GITHUB_OUTPUT"
+        echo "susfs_version=${susfs_version}" >> "$GITHUB_OUTPUT"
+        echo "susfs_branch=${susfs_branch}" >> "$GITHUB_OUTPUT"
+        echo "build_date=${build_date}" >> "$GITHUB_OUTPUT"
+        echo "local_version=${LOCALVERSION:-}" >> "$GITHUB_OUTPUT"
+        echo "[+] GitHub Actions outputs written to GITHUB_OUTPUT"
     fi
-
-    cat >> "./dist/release_body.md" <<EOF
-
-## Build Details
-
-- **Build Date**: ${build_date}
-- **Architecture**: arm64
-- **Local Version**: ${LOCALVERSION:-N/A}
-
-## Files Included
-
-- \`AnyKernel.zip\` - Flashable zip for custom recovery
-- \`boot.img\` - Flashable boot image (if available)
-- \`kernel\` - Raw kernel image
-- \`build_info.txt\` - Detailed build information
-
-## Installation
-
-### Using AnyKernel (Recommended)
-1. Boot into custom recovery (TWRP/OrangeFox)
-2. Flash \`AnyKernel.zip\`
-3. Reboot
-
-### Using boot.img
-1. Use Odin or fastboot to flash \`boot.img\` to boot partition
-2. Reboot
-
----
-*Automated build from commit \`\${GITHUB_SHA:-N/A}\`*
-EOF
-
-    echo "[+] Release body saved to ./dist/release_body.md"
 }

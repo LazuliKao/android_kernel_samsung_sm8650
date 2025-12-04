@@ -161,7 +161,15 @@ case "${1:-}" in
         fi
     fi
     echo "[+] Building kernel using Docker container..."
-    docker run --rm -i -v "$kernel_root:/workspace" -v "$toolchains_root:/toolchains" $container_name /workspace/build.sh
+    
+    # Build docker run command with optional GITHUB_OUTPUT mapping
+    docker_args="--rm -i -v $kernel_root:/workspace -v $toolchains_root:/toolchains"
+    if [ -n "$GITHUB_OUTPUT" ]; then
+        echo "[+] Mapping GITHUB_OUTPUT into container..."
+        docker_args="$docker_args -v $GITHUB_OUTPUT:/github_output -e GITHUB_OUTPUT=/github_output"
+    fi
+    
+    docker run $docker_args $container_name /workspace/build.sh
     if [ $? -ne 0 ]; then
         echo "[-] Kernel build failed."
         exit 1
