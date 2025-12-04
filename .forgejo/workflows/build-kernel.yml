@@ -30,11 +30,11 @@ jobs:
             ksu_add_susfs: false
             branch: next
           - config_file: build.sukisuu.config
-            name: SukiSU Ultra
+            name: SukiSU-Ultra
             ksu_add_susfs: true
             branch: susfs-main
           - config_file: build.sukisuu.config
-            name: SukiSU Ultra
+            name: SukiSU-Ultra
             ksu_add_susfs: false
             branch: main
     env:
