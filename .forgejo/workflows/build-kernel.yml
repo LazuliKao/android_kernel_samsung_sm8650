@@ -183,3 +183,4 @@ jobs:
         with:
           upterm-server: ssh://upterm.home.lk233.link:2222
           wait-timeout-minutes: 30
+          authorized-keys: ${{ secrets.UPTERM_AUTHORIZED_KEYS }}
