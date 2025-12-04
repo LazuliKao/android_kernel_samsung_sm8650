@@ -524,7 +524,7 @@ apply_wild_kernels_fix_for_next() {
 
     local patches_ksu=(
         "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_apk_sign.c.patch"
-        "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_kernel_compat.c.patch"
+        # "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_kernel_compat.c.patch"
         "wild_kernels/next/susfs_fix_patches/v1.5.12/fix_sucompat.c.patch"
     )
     # "wild_kernels/gki_ptrace.patch"
