@@ -177,14 +177,9 @@ jobs:
           retention-days: 7
           include-hidden-files: true
 
-      - name: Setup tmate session
+      - name: Debug with Upterm
         if: failure()
-        uses: https://github.com/mxschmitt/action-tmate@v3
-        timeout-minutes: 30
+        uses: https://github.com/owenthereal/action-upterm@v1
         with:
-          tmate-server-host: 100.99.233.2
-          tmate-server-port: 2222
-          tmate-server-rsa-fingerprint: SHA256:lOJOu2w1fKEnI6TDF+cuWlim8G7l3vWmUqte+DLrRF0
-          tmate-server-ed25519-fingerprint: SHA256:N/sbGFFKDTPJ7TFyzlTG8JuZM5paA1usxJzOKOU934E
-          limit-access-to-actor: true
-          github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          upterm-server: ssh://upterm.home.lk233.link:2222
+          wait-timeout-minutes: 30

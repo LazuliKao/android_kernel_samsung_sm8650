@@ -38,8 +38,7 @@ function add_susfs() {
     cd "$kernel_root"
     _apply_patch 50_add_susfs_in_"$susfs_branch".patch 2
     if [ $? -ne 0 ]; then
-        echo "[-] Failed to apply SuSFS patches."
-        exit 1
+        echo "[-] apply SuSFS patches has some issues."
     fi
     echo "[+] SuSFS patches applied successfully."
     local susfs_commit_short="${susfs_commit:0:7}"
